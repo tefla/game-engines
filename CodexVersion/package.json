@@ -1,0 +1,22 @@
+{
+  "name": "oort-engine",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "games/*"
+  ],
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc -p tsconfig.json",
+    "slate": "bun run packages/slate/src/cli.ts",
+    "demo": "bun run games/puzzle-demo/src/main.ts",
+    "demo:web:build": "bun build games/puzzle-demo/web/main.ts --target=browser --format=esm --outdir games/puzzle-demo/web/dist",
+    "demo:web:serve": "bun run games/puzzle-demo/web/server.ts",
+    "demo:web": "bun run demo:web:build && bun run demo:web:serve"
+  },
+  "devDependencies": {
+    "@types/node": "^24.3.0",
+    "typescript": "^5.9.2"
+  }
+}

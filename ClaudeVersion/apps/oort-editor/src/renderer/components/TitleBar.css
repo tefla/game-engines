@@ -1,0 +1,65 @@
+.title-bar {
+  display: flex;
+  align-items: center;
+  height: var(--header-height);
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.title-bar.mac {
+  justify-content: center;
+}
+
+.title-bar.windows {
+  justify-content: space-between;
+}
+
+/* macOS traffic light space */
+.traffic-light-space {
+  width: 70px;
+  flex-shrink: 0;
+}
+
+/* Title */
+.title-bar-title {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.title-text {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Windows controls */
+.window-controls {
+  display: flex;
+  height: 100%;
+}
+
+.window-control {
+  width: 46px;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+
+.window-control:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.window-close:hover {
+  background: var(--error);
+  color: white;
+}

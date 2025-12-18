@@ -1,0 +1,112 @@
+.console-panel {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.console-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.console-btn {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.console-btn:hover {
+  background: var(--hover);
+}
+
+.console-output {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.console-empty {
+  color: var(--text-subtle);
+  font-style: italic;
+}
+
+.console-entry {
+  display: flex;
+  gap: 8px;
+  padding: 2px 0;
+  line-height: 1.4;
+}
+
+.entry-time {
+  color: var(--text-subtle);
+  flex-shrink: 0;
+  font-size: 10px;
+}
+
+.entry-text {
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.console-log .entry-text {
+  color: var(--text);
+}
+
+.console-error .entry-text {
+  color: var(--error);
+}
+
+.console-warn .entry-text {
+  color: var(--warning);
+}
+
+.console-info .entry-text {
+  color: var(--text-muted);
+}
+
+.console-result .entry-text {
+  color: var(--accent);
+}
+
+.console-input-container {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  background: var(--surface);
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.input-prompt {
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-weight: bold;
+}
+
+.console-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  outline: none;
+}
+
+.console-input::placeholder {
+  color: var(--text-subtle);
+}

@@ -1,0 +1,36 @@
+// IPC channel names for communication between main and renderer
+
+export const IPC = {
+  // Project operations
+  PROJECT_CREATE: "project:create",
+  PROJECT_OPEN: "project:open",
+  PROJECT_SAVE: "project:save",
+  PROJECT_CLOSE: "project:close",
+  PROJECT_OPENED: "project:opened",
+
+  // File operations
+  FILE_READ: "file:read",
+  FILE_WRITE: "file:write",
+  FILE_DELETE: "file:delete",
+  FILE_RENAME: "file:rename",
+  FILE_LIST: "file:list",
+  FILE_EXTERNAL_CHANGE: "file:external-change",
+
+  // Dialog operations
+  DIALOG_OPEN_FILE: "dialog:open-file",
+  DIALOG_OPEN_FOLDER: "dialog:open-folder",
+  DIALOG_SAVE_FILE: "dialog:save-file",
+  DIALOG_MESSAGE: "dialog:message",
+
+  // Window operations
+  WINDOW_MINIMIZE: "window:minimize",
+  WINDOW_MAXIMIZE: "window:maximize",
+  WINDOW_CLOSE: "window:close",
+  WINDOW_TOGGLE_DEVTOOLS: "window:toggle-devtools",
+
+  // App info
+  APP_GET_VERSION: "app:get-version",
+  APP_GET_PATH: "app:get-path",
+} as const;
+
+export type IPCChannel = (typeof IPC)[keyof typeof IPC];

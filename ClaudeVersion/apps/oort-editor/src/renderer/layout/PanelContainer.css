@@ -1,0 +1,87 @@
+.panel-container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  background: var(--panel-bg);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.panel-container.panel-focused {
+  border-color: var(--accent);
+}
+
+.panel-header {
+  display: flex;
+  align-items: center;
+  height: 32px;
+  padding: 0 8px;
+  background: var(--panel-header-bg);
+  border-bottom: 1px solid var(--border);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.panel-icon {
+  margin-right: 6px;
+  font-size: 14px;
+  opacity: 0.8;
+}
+
+.panel-title {
+  flex: 1;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.panel-actions {
+  display: flex;
+  gap: 4px;
+}
+
+.panel-action {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.panel-action:hover {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.panel-close:hover {
+  background: var(--error);
+  color: white;
+}
+
+.panel-content {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+}
+
+.panel-error {
+  border-color: var(--error);
+}
+
+.panel-error .panel-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--error);
+}

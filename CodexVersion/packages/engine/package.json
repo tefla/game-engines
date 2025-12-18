@@ -1,0 +1,9 @@
+{
+  "name": "@oort/engine",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
+

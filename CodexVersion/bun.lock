@@ -1,0 +1,56 @@
+{
+  "lockfileVersion": 1,
+  "workspaces": {
+    "": {
+      "name": "oort-engine",
+      "devDependencies": {
+        "@types/node": "^24.3.0",
+        "typescript": "^5.9.2",
+      },
+    },
+    "games/puzzle-demo": {
+      "name": "puzzle-demo",
+      "dependencies": {
+        "@oort/renderer": "workspace:*",
+        "@oort/slate": "workspace:*",
+      },
+    },
+    "packages/core": {
+      "name": "@oort/core",
+    },
+    "packages/engine": {
+      "name": "@oort/engine",
+    },
+    "packages/renderer": {
+      "name": "@oort/renderer",
+      "dependencies": {
+        "three": "^0.180.0",
+      },
+    },
+    "packages/slate": {
+      "name": "@oort/slate",
+      "dependencies": {
+        "@oort/engine": "workspace:*",
+      },
+    },
+  },
+  "packages": {
+    "@oort/core": ["@oort/core@workspace:packages/core"],
+
+    "@oort/engine": ["@oort/engine@workspace:packages/engine"],
+
+    "@oort/renderer": ["@oort/renderer@workspace:packages/renderer"],
+
+    "@oort/slate": ["@oort/slate@workspace:packages/slate"],
+
+    "@types/node": ["@types/node@24.10.4", "", { "dependencies": { "undici-types": "~7.16.0" } }, "sha512-vnDVpYPMzs4wunl27jHrfmwojOGKya0xyM3sH+UE5iv5uPS6vX7UIoh6m+vQc5LGBq52HBKPIn/zcSZVzeDEZg=="],
+
+    "puzzle-demo": ["puzzle-demo@workspace:games/puzzle-demo"],
+
+    "three": ["three@0.180.0", "", {}, "sha512-o+qycAMZrh+TsE01GqWUxUIKR1AL0S8pq7zDkYOQw8GqfX8b8VoCKYUoHbhiX5j+7hr8XsuHDVU6+gkQJQKg9w=="],
+
+    "typescript": ["typescript@5.9.3", "", { "bin": { "tsc": "bin/tsc", "tsserver": "bin/tsserver" } }, "sha512-jl1vZzPDinLr9eUt3J/t7V6FgNEw9QjvBPdysz9KfQDD41fQrC2Y4vKQdiaUpFT4bXlb1RHhLpp8wtm6M5TgSw=="],
+
+    "undici-types": ["undici-types@7.16.0", "", {}, "sha512-Zz+aZWSj8LE6zoxD+xrjh4VfkIG8Ya6LvYkZqtUQGJPZjYl53ypCaUwWqo7eI0x66KBGeRo+mlBEkMSeSZ38Nw=="],
+  }
+}

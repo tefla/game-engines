@@ -1,0 +1,11 @@
+{
+  "name": "@oort/slate",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@oort/engine": "workspace:*"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}

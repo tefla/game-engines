@@ -1,0 +1,12 @@
+{
+  "name": "@oort/renderer",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "three": "^0.180.0"
+  },
+  "exports": {
+    ".": "./src/index.ts"
+  }
+}
+
