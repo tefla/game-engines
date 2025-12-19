@@ -1,16 +1,22 @@
 // Slate Language Package
 
+// Legacy exports for backward compatibility (used by editor, vcs, and engine)
 export { Lexer } from "./lexer";
 export { Parser } from "./parser";
 export { Interpreter } from "./interpreter";
 export type { SignalHandler, InterpreterOptions } from "./interpreter";
-export { stdlib } from "./stdlib";
 export {
   ModuleLoader,
   InMemoryModuleResolver,
   type ModuleResolver,
   type ModuleInterpreter,
 } from "./interpreter/module-loader";
+
+// Standard library
+export { stdlib } from "./stdlib";
+
+// New S-expression based implementation
+export { createSlateRuntime, createSexprRuntime } from "./sexpr";
 
 // Re-export core types
 export {
@@ -58,7 +64,7 @@ export {
   ParseError,
 } from "@oort/core";
 
-// Convenience function to run Slate code
+// Imports for convenience functions
 import { Lexer } from "./lexer";
 import { Parser } from "./parser";
 import { Interpreter } from "./interpreter";
@@ -70,6 +76,7 @@ export interface SlateOptions {
   includeStdlib?: boolean;
 }
 
+// Convenience function to run Slate code (uses old interpreter for now)
 export function runSlate(
   source: string,
   options: SlateOptions = {}
@@ -96,6 +103,7 @@ export function runSlate(
   return interpreter.run(ast);
 }
 
+// Parse Slate source to AST
 export function parseSlate(source: string) {
   const lexer = new Lexer(source);
   const tokens = lexer.tokenize();
@@ -103,6 +111,7 @@ export function parseSlate(source: string) {
   return parser.parse();
 }
 
+// Tokenize Slate source
 export function tokenizeSlate(source: string) {
   const lexer = new Lexer(source);
   return lexer.tokenize();
