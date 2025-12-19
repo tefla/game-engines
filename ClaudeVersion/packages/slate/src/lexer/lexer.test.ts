@@ -158,6 +158,79 @@ z`);
       expect(indentCount).toBe(2);
       expect(dedentCount).toBe(2);
     });
+
+    it("skips INDENT/DEDENT inside braces (implicit line continuation)", () => {
+      const lexer = new Lexer(`{
+    x: 1,
+    y: 2,
+}`);
+      const tokens = lexer.tokenize();
+
+      const indentCount = tokens.filter((t) => t.type === TokenType.INDENT).length;
+      const dedentCount = tokens.filter((t) => t.type === TokenType.DEDENT).length;
+      const newlineCount = tokens.filter((t) => t.type === TokenType.NEWLINE).length;
+
+      expect(indentCount).toBe(0);
+      expect(dedentCount).toBe(0);
+      expect(newlineCount).toBe(0);
+    });
+
+    it("skips INDENT/DEDENT inside brackets", () => {
+      const lexer = new Lexer(`[
+    1,
+    2,
+    3,
+]`);
+      const tokens = lexer.tokenize();
+
+      const indentCount = tokens.filter((t) => t.type === TokenType.INDENT).length;
+      expect(indentCount).toBe(0);
+    });
+
+    it("skips INDENT/DEDENT inside parentheses", () => {
+      const lexer = new Lexer(`foo(
+    1,
+    2,
+    3
+)`);
+      const tokens = lexer.tokenize();
+
+      const indentCount = tokens.filter((t) => t.type === TokenType.INDENT).length;
+      expect(indentCount).toBe(0);
+    });
+
+    it("handles nested brackets with multi-line content", () => {
+      const lexer = new Lexer(`{
+    name: "test",
+    items: [
+        1,
+        2,
+    ],
+    nested: {
+        x: 1,
+    },
+}`);
+      const tokens = lexer.tokenize();
+
+      const indentCount = tokens.filter((t) => t.type === TokenType.INDENT).length;
+      const dedentCount = tokens.filter((t) => t.type === TokenType.DEDENT).length;
+
+      expect(indentCount).toBe(0);
+      expect(dedentCount).toBe(0);
+    });
+
+    it("resumes indentation handling after closing bracket", () => {
+      const lexer = new Lexer(`let x = {
+    a: 1,
+}
+fn foo:
+    bar`);
+      const tokens = lexer.tokenize();
+
+      // Should have INDENT for the function body
+      const indentCount = tokens.filter((t) => t.type === TokenType.INDENT).length;
+      expect(indentCount).toBe(1);
+    });
   });
 
   describe("comments", () => {

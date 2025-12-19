@@ -13,6 +13,7 @@ export class Lexer {
   private indentStack: number[] = [0];
   private atLineStart = true;
   private pendingTokens: Token[] = [];
+  private bracketDepth = 0; // Track depth of (), [], {} for implicit line continuation
 
   constructor(source: string) {
     this.source = source;
@@ -47,21 +48,27 @@ export class Lexer {
 
     switch (c) {
       case "(":
+        this.bracketDepth++;
         this.addToken(TokenType.LEFT_PAREN);
         break;
       case ")":
+        this.bracketDepth = Math.max(0, this.bracketDepth - 1);
         this.addToken(TokenType.RIGHT_PAREN);
         break;
       case "[":
+        this.bracketDepth++;
         this.addToken(TokenType.LEFT_BRACKET);
         break;
       case "]":
+        this.bracketDepth = Math.max(0, this.bracketDepth - 1);
         this.addToken(TokenType.RIGHT_BRACKET);
         break;
       case "{":
+        this.bracketDepth++;
         this.addToken(TokenType.LEFT_BRACE);
         break;
       case "}":
+        this.bracketDepth = Math.max(0, this.bracketDepth - 1);
         this.addToken(TokenType.RIGHT_BRACE);
         break;
       case ",":
@@ -169,6 +176,16 @@ export class Lexer {
   }
 
   private handleIndentation(): void {
+    // Skip indentation handling when inside brackets (implicit line continuation)
+    if (this.bracketDepth > 0) {
+      this.atLineStart = false;
+      // Still need to skip whitespace
+      while (!this.isAtEnd() && (this.peek() === " " || this.peek() === "\t")) {
+        this.advance();
+      }
+      return;
+    }
+
     let indent = 0;
 
     // Skip blank lines and comments
@@ -233,7 +250,10 @@ export class Lexer {
   }
 
   private newline(): void {
-    this.tokens.push(this.makeToken(TokenType.NEWLINE, "\n"));
+    // Skip NEWLINE token when inside brackets (implicit line continuation)
+    if (this.bracketDepth === 0) {
+      this.tokens.push(this.makeToken(TokenType.NEWLINE, "\n"));
+    }
     this.line++;
     this.column = 1;
     this.lineStart = this.current;

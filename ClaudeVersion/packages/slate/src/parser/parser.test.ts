@@ -175,6 +175,41 @@ describe("Parser", () => {
       expect(expr.fields[0].value.type).toBe("Record");
       expect(expr.fields[1].value.type).toBe("List");
     });
+
+    it("parses record with trailing comma", () => {
+      const ast = parse("{x: 1, y: 2,}");
+
+      const expr = (ast.statements[0] as any).expression;
+      expect(expr.type).toBe("Record");
+      expect(expr.fields.length).toBe(2);
+      expect(expr.fields[0].key).toBe("x");
+      expect(expr.fields[1].key).toBe("y");
+    });
+
+    it("parses list with trailing comma", () => {
+      const ast = parse("[1, 2, 3,]");
+
+      const expr = (ast.statements[0] as any).expression;
+      expect(expr.type).toBe("List");
+      expect(expr.elements.length).toBe(3);
+    });
+
+    it("parses function call with trailing comma", () => {
+      const ast = parse("foo(1, 2,)");
+
+      const expr = (ast.statements[0] as any).expression;
+      expect(expr.type).toBe("Call");
+      expect(expr.args.length).toBe(2);
+    });
+
+    it("parses nested structures with trailing commas", () => {
+      const ast = parse("{pos: {x: 0, y: 0,}, items: [1, 2,],}");
+
+      const expr = (ast.statements[0] as any).expression;
+      expect(expr.type).toBe("Record");
+      expect(expr.fields[0].value.type).toBe("Record");
+      expect(expr.fields[1].value.type).toBe("List");
+    });
   });
 
   describe("if expressions", () => {

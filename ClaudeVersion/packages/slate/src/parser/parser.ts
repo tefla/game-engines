@@ -665,6 +665,8 @@ export class Parser {
 
     if (!this.check(TokenType.RIGHT_PAREN)) {
       do {
+        // Support trailing commas - check for closing paren after comma
+        if (this.check(TokenType.RIGHT_PAREN)) break;
         args.push(this.expression());
       } while (this.match(TokenType.COMMA));
     }
@@ -1014,6 +1016,8 @@ export class Parser {
 
     if (!this.check(TokenType.RIGHT_BRACE)) {
       do {
+        // Support trailing commas - check for closing brace after comma
+        if (this.check(TokenType.RIGHT_BRACE)) break;
         const key = this.consumeFieldName("Expected field name");
         this.consume(TokenType.COLON, "Expected ':' after field name");
         const value = this.expression();
@@ -1037,6 +1041,8 @@ export class Parser {
 
     if (!this.check(TokenType.RIGHT_BRACKET)) {
       do {
+        // Support trailing commas - check for closing bracket after comma
+        if (this.check(TokenType.RIGHT_BRACKET)) break;
         elements.push(this.expression());
       } while (this.match(TokenType.COMMA));
     }
