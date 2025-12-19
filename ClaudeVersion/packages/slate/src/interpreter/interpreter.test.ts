@@ -348,6 +348,308 @@ describe("Interpreter", () => {
     });
   });
 
+  describe("break and continue", () => {
+    it("break exits for loop immediately", () => {
+      const result = runSlate(dedent(`
+        var sum = 0
+        for i in 10:
+            if i == 5:
+                break
+            sum = sum + i
+        sum
+      `));
+      expect(result).toEqual(Num(10)); // 0 + 1 + 2 + 3 + 4
+    });
+
+    it("break exits list iteration", () => {
+      const result = runSlate(dedent(`
+        var sum = 0
+        for x in [1, 2, 3, 4, 5]:
+            if x == 3:
+                break
+            sum = sum + x
+        sum
+      `));
+      expect(result).toEqual(Num(3)); // 1 + 2
+    });
+
+    it("continue skips to next iteration", () => {
+      const result = runSlate(dedent(`
+        var sum = 0
+        for i in 5:
+            if i == 2:
+                continue
+            sum = sum + i
+        sum
+      `));
+      expect(result).toEqual(Num(8)); // 0 + 1 + 3 + 4 (skips 2)
+    });
+
+    it("continue skips in list iteration", () => {
+      const result = runSlate(dedent(`
+        var sum = 0
+        for x in [1, 2, 3, 4, 5]:
+            if x % 2 == 0:
+                continue
+            sum = sum + x
+        sum
+      `));
+      expect(result).toEqual(Num(9)); // 1 + 3 + 5 (skips even numbers)
+    });
+
+    it("break only affects innermost loop", () => {
+      const result = runSlate(dedent(`
+        var sum = 0
+        for i in 3:
+            for j in 3:
+                if j == 1:
+                    break
+                sum = sum + 1
+        sum
+      `));
+      expect(result).toEqual(Num(3)); // Each outer iteration adds 1 (j=0), then breaks
+    });
+
+    it("continue only affects innermost loop", () => {
+      const result = runSlate(dedent(`
+        var sum = 0
+        for i in 2:
+            for j in 3:
+                if j == 1:
+                    continue
+                sum = sum + 1
+        sum
+      `));
+      expect(result).toEqual(Num(4)); // 2 outer * (j=0 and j=2) = 4
+    });
+
+    it("break exits loop statement", () => {
+      const result = runSlate(dedent(`
+        var count = 0
+        loop:
+            count = count + 1
+            if count == 5:
+                break
+        count
+      `));
+      expect(result).toEqual(Num(5));
+    });
+  });
+
+  describe("string interpolation", () => {
+    it("interpolates simple variable", () => {
+      const result = runSlate(dedent(`
+        let name = "World"
+        "Hello, {name}!"
+      `));
+      expect(result).toEqual(Str("Hello, World!"));
+    });
+
+    it("interpolates expression", () => {
+      const result = runSlate('"Result: {2 + 2}"');
+      expect(result).toEqual(Str("Result: 4"));
+    });
+
+    it("interpolates multiple expressions", () => {
+      const result = runSlate(dedent(`
+        let x = 10
+        let y = 20
+        "{x} + {y} = {x + y}"
+      `));
+      expect(result).toEqual(Str("10 + 20 = 30"));
+    });
+
+    it("interpolates member access", () => {
+      const result = runSlate(dedent(`
+        let obj = {name: "Alice", age: 30}
+        "{obj.name} is {obj.age} years old"
+      `));
+      expect(result).toEqual(Str("Alice is 30 years old"));
+    });
+
+    it("handles empty interpolation expression", () => {
+      const result = runSlate('"{42}"');
+      expect(result).toEqual(Str("42"));
+    });
+
+    it("handles string at end only", () => {
+      const result = runSlate('"{42} apples"');
+      expect(result).toEqual(Str("42 apples"));
+    });
+
+    it("handles string at start only", () => {
+      const result = runSlate('"Count: {42}"');
+      expect(result).toEqual(Str("Count: 42"));
+    });
+
+    it("handles nested record inside interpolation", () => {
+      const result = runSlate(dedent(`
+        let data = {inner: {value: 99}}
+        "Value: {data.inner.value}"
+      `));
+      expect(result).toEqual(Str("Value: 99"));
+    });
+
+    it("handles function call in interpolation", () => {
+      const result = runSlate(dedent(`
+        fn double x:
+            x * 2
+        "Double of 5 is {double(5)}"
+      `));
+      expect(result).toEqual(Str("Double of 5 is 10"));
+    });
+
+    it("handles complex expression with braces", () => {
+      // This tests that record literals work inside interpolation
+      const result = runSlate(dedent(`
+        let r = {x: 1}
+        "Value: {r.x + 10}"
+      `));
+      expect(result).toEqual(Str("Value: 11"));
+    });
+  });
+
+  describe("range syntax", () => {
+    it("creates exclusive range (..)", () => {
+      const result = runSlate("0..5");
+      expect(result.type).toBe("list");
+      expect((result as any).elements.map((e: any) => e.value)).toEqual([
+        0, 1, 2, 3, 4,
+      ]);
+    });
+
+    it("creates inclusive range (..=)", () => {
+      const result = runSlate("0..=5");
+      expect(result.type).toBe("list");
+      expect((result as any).elements.map((e: any) => e.value)).toEqual([
+        0, 1, 2, 3, 4, 5,
+      ]);
+    });
+
+    it("works with variables", () => {
+      const result = runSlate(dedent(`
+        let start = 1
+        let end = 4
+        start..end
+      `));
+      expect((result as any).elements.map((e: any) => e.value)).toEqual([
+        1, 2, 3,
+      ]);
+    });
+
+    it("works with expressions", () => {
+      const result = runSlate("(1 + 1)..(3 + 2)");
+      expect((result as any).elements.map((e: any) => e.value)).toEqual([
+        2, 3, 4,
+      ]);
+    });
+
+    it("works in for loop", () => {
+      const result = runSlate(dedent(`
+        var sum = 0
+        for i in 1..=5:
+            sum = sum + i
+        sum
+      `));
+      expect(result).toEqual(Num(15)); // 1 + 2 + 3 + 4 + 5
+    });
+
+    it("creates empty range when start equals end (exclusive)", () => {
+      const result = runSlate("5..5");
+      expect(result.type).toBe("list");
+      expect((result as any).elements.length).toBe(0);
+    });
+
+    it("creates single element range when start equals end (inclusive)", () => {
+      const result = runSlate("5..=5");
+      expect(result.type).toBe("list");
+      expect((result as any).elements.map((e: any) => e.value)).toEqual([5]);
+    });
+
+    it("handles negative ranges", () => {
+      const result = runSlate("-3..1");
+      expect((result as any).elements.map((e: any) => e.value)).toEqual([
+        -3, -2, -1, 0,
+      ]);
+    });
+
+    it("handles descending range when start > end", () => {
+      const result = runSlate("5..2");
+      expect((result as any).elements.map((e: any) => e.value)).toEqual([
+        5, 4, 3,
+      ]);
+    });
+  });
+
+  describe("null coalescing", () => {
+    it("returns left value when not null", () => {
+      const result = runSlate("42 ?? 0");
+      expect(result).toEqual(Num(42));
+    });
+
+    it("returns right value when left is null", () => {
+      const result = runSlate(dedent(`
+        fn maybe_null:
+            if false:
+                42
+        maybe_null() ?? 100
+      `));
+      expect(result).toEqual(Num(100));
+    });
+
+    it("returns left value for strings", () => {
+      const result = runSlate('"hello" ?? "default"');
+      expect(result).toEqual(Str("hello"));
+    });
+
+    it("chains correctly: null ?? null ?? value", () => {
+      const result = runSlate(dedent(`
+        fn null_fn:
+            if false:
+                1
+        null_fn() ?? null_fn() ?? 42
+      `));
+      expect(result).toEqual(Num(42));
+    });
+
+    it("chains correctly: value ?? null ?? null", () => {
+      const result = runSlate(dedent(`
+        fn null_fn:
+            if false:
+                1
+        10 ?? null_fn() ?? 42
+      `));
+      expect(result).toEqual(Num(10));
+    });
+
+    it("short-circuits evaluation", () => {
+      // If short-circuiting works, dividing by zero won't happen
+      const result = runSlate("42 ?? (1 / 0)");
+      expect(result).toEqual(Num(42));
+    });
+
+    it("works with false boolean (not null)", () => {
+      const result = runSlate("false ?? true");
+      expect(result).toEqual(Bool(false));
+    });
+
+    it("works with zero (not null)", () => {
+      const result = runSlate("0 ?? 100");
+      expect(result).toEqual(Num(0));
+    });
+
+    it("works with empty string (not null)", () => {
+      const result = runSlate('"" ?? "default"');
+      expect(result).toEqual(Str(""));
+    });
+
+    it("works with empty list (not null)", () => {
+      const result = runSlate("[] ?? [1, 2, 3]");
+      expect(result.type).toBe("list");
+      expect((result as any).elements.length).toBe(0);
+    });
+  });
+
   describe("stdlib", () => {
     it("has abs function", () => {
       expect(runSlate("abs(-5)")).toEqual(Num(5));

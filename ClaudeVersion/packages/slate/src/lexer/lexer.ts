@@ -15,6 +15,10 @@ export class Lexer {
   private pendingTokens: Token[] = [];
   private bracketDepth = 0; // Track depth of (), [], {} for implicit line continuation
 
+  // For string interpolation
+  private interpStringStack: number[] = []; // Stack of brace depths when entering interpolation
+  private interpBraceDepth = 0; // Brace depth within current interpolation expression
+
   constructor(source: string) {
     this.source = source;
   }
@@ -65,10 +69,23 @@ export class Lexer {
         break;
       case "{":
         this.bracketDepth++;
+        // Track brace depth for interpolation
+        if (this.interpStringStack.length > 0) {
+          this.interpBraceDepth++;
+        }
         this.addToken(TokenType.LEFT_BRACE);
         break;
       case "}":
+        // Check if this closes an interpolation expression
+        if (this.interpStringStack.length > 0 && this.interpBraceDepth === 0) {
+          // Continue scanning the string from here
+          this.continueInterpolatedString();
+          break;
+        }
         this.bracketDepth = Math.max(0, this.bracketDepth - 1);
+        if (this.interpStringStack.length > 0) {
+          this.interpBraceDepth = Math.max(0, this.interpBraceDepth - 1);
+        }
         this.addToken(TokenType.RIGHT_BRACE);
         break;
       case ",":
@@ -108,7 +125,11 @@ export class Lexer {
         break;
       case ".":
         if (this.match(".")) {
-          this.addToken(TokenType.DOT_DOT);
+          if (this.match("=")) {
+            this.addToken(TokenType.DOT_DOT_EQUAL);
+          } else {
+            this.addToken(TokenType.DOT_DOT);
+          }
         } else {
           this.addToken(TokenType.DOT);
         }
@@ -152,6 +173,13 @@ export class Lexer {
         break;
       case "@":
         this.addToken(TokenType.AT);
+        break;
+      case "?":
+        if (this.match("?")) {
+          this.addToken(TokenType.QUESTION_QUESTION);
+        } else {
+          this.error("Unexpected character '?'");
+        }
         break;
       case " ":
       case "\t":
@@ -267,16 +295,40 @@ export class Lexer {
   }
 
   private string(): void {
-    const startLine = this.line;
-    const startColumn = this.column - 1;
+    const stringStart = this.start + 1; // After opening quote
+    let hasInterpolation = false;
 
     while (!this.isAtEnd() && this.peek() !== '"') {
       if (this.peek() === "\n") {
         this.line++;
         this.column = 0;
       }
+      // Check for escape sequence
       if (this.peek() === "\\" && this.peekNext() !== "\0") {
         this.advance(); // consume backslash
+        this.advance(); // consume escaped char
+        continue;
+      }
+      // Check for interpolation start
+      if (this.peek() === "{") {
+        hasInterpolation = true;
+        // Extract the string part before {
+        const raw = this.source.slice(stringStart, this.current);
+        const value = this.unescapeString(raw);
+
+        // Determine token type based on whether we're already in interpolation
+        const tokenType = this.interpStringStack.length > 0
+          ? TokenType.STRING_INTERP_MIDDLE
+          : TokenType.STRING_INTERP_START;
+
+        this.addTokenLiteral(tokenType, value);
+
+        // Push to interpolation stack (store that we're in interpolation mode)
+        this.interpStringStack.push(this.interpBraceDepth);
+        this.interpBraceDepth = 0;
+
+        this.advance(); // consume the '{'
+        return; // Let the main loop lex the expression
       }
       this.advance();
     }
@@ -289,9 +341,67 @@ export class Lexer {
     this.advance(); // closing quote
 
     // Extract the string value, handling escape sequences
-    const raw = this.source.slice(this.start + 1, this.current - 1);
+    const raw = this.source.slice(stringStart, this.current - 1);
     const value = this.unescapeString(raw);
-    this.addTokenLiteral(TokenType.STRING, value);
+
+    // Determine token type
+    if (this.interpStringStack.length > 0) {
+      // This is the end of an interpolated string
+      this.interpStringStack.pop();
+      this.addTokenLiteral(TokenType.STRING_INTERP_END, value);
+    } else {
+      // Regular string
+      this.addTokenLiteral(TokenType.STRING, value);
+    }
+  }
+
+  // Continue scanning an interpolated string after a } closes an expression
+  private continueInterpolatedString(): void {
+    // We just consumed }, now continue scanning the string
+    const stringStart = this.current;
+
+    while (!this.isAtEnd() && this.peek() !== '"') {
+      if (this.peek() === "\n") {
+        this.line++;
+        this.column = 0;
+      }
+      // Check for escape sequence
+      if (this.peek() === "\\" && this.peekNext() !== "\0") {
+        this.advance(); // consume backslash
+        this.advance(); // consume escaped char
+        continue;
+      }
+      // Check for another interpolation
+      if (this.peek() === "{") {
+        // Extract the string part between } and {
+        const raw = this.source.slice(stringStart, this.current);
+        const value = this.unescapeString(raw);
+
+        this.addTokenLiteral(TokenType.STRING_INTERP_MIDDLE, value);
+
+        // Don't need to push to stack, already in interpolation mode
+        this.interpBraceDepth = 0;
+
+        this.advance(); // consume the '{'
+        return; // Let the main loop lex the expression
+      }
+      this.advance();
+    }
+
+    if (this.isAtEnd()) {
+      this.error("Unterminated string");
+      return;
+    }
+
+    this.advance(); // closing quote
+
+    // Extract the final string part
+    const raw = this.source.slice(stringStart, this.current - 1);
+    const value = this.unescapeString(raw);
+
+    // Pop from the interpolation stack
+    this.interpStringStack.pop();
+    this.addTokenLiteral(TokenType.STRING_INTERP_END, value);
   }
 
   private unescapeString(s: string): string {

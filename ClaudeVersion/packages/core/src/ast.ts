@@ -92,6 +92,7 @@ export interface RangeExpr extends ASTNode {
   type: "Range";
   start: Expr;
   end: Expr;
+  inclusive: boolean;
   step?: Expr;
 }
 
@@ -112,6 +113,17 @@ export interface ColorExpr extends ASTNode {
   hex: string;
 }
 
+export interface NullCoalesceExpr extends ASTNode {
+  type: "NullCoalesce";
+  left: Expr;
+  right: Expr;
+}
+
+export interface InterpolatedStringExpr extends ASTNode {
+  type: "InterpolatedString";
+  parts: Array<{ kind: "literal"; value: string } | { kind: "expr"; expr: Expr }>;
+}
+
 // Union of all expression types
 export type Expr =
   | LiteralExpr
@@ -129,7 +141,9 @@ export type Expr =
   | RangeExpr
   | WithExpr
   | AssignExpr
-  | ColorExpr;
+  | ColorExpr
+  | NullCoalesceExpr
+  | InterpolatedStringExpr;
 
 // ============ Patterns ============
 
@@ -236,6 +250,14 @@ export interface ForStmt extends ASTNode {
   body: Block;
 }
 
+export interface BreakStmt extends ASTNode {
+  type: "Break";
+}
+
+export interface ContinueStmt extends ASTNode {
+  type: "Continue";
+}
+
 export interface YieldStmt extends ASTNode {
   type: "Yield";
 }
@@ -274,6 +296,8 @@ export type Stmt =
   | ImportStmt
   | LoopStmt
   | ForStmt
+  | BreakStmt
+  | ContinueStmt
   | YieldStmt
   | SpawnStmt
   | WaitStmt

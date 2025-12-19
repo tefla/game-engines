@@ -4,6 +4,9 @@ export enum TokenType {
   // Literals
   NUMBER = "NUMBER",
   STRING = "STRING",
+  STRING_INTERP_START = "STRING_INTERP_START", // "Hello, {
+  STRING_INTERP_MIDDLE = "STRING_INTERP_MIDDLE", // } and {
+  STRING_INTERP_END = "STRING_INTERP_END", // }!"
   IDENTIFIER = "IDENTIFIER",
 
   // Keywords (7 core)
@@ -28,6 +31,8 @@ export enum TokenType {
   FOR = "FOR",
   IN = "IN",
   BY = "BY",
+  BREAK = "BREAK",
+  CONTINUE = "CONTINUE",
   YIELD = "YIELD",
   SPAWN = "SPAWN",
   WAIT = "WAIT",
@@ -51,11 +56,13 @@ export enum TokenType {
   THIN_ARROW = "THIN_ARROW", // ->
   DOT = "DOT",
   DOT_DOT = "DOT_DOT",       // ..
+  DOT_DOT_EQUAL = "DOT_DOT_EQUAL", // ..= (inclusive range)
   COMMA = "COMMA",
   COLON = "COLON",
   PIPE = "PIPE",
   UNDERSCORE = "UNDERSCORE",
   HASH = "HASH",
+  QUESTION_QUESTION = "QUESTION_QUESTION", // ??
 
   // Brackets
   LEFT_PAREN = "LEFT_PAREN",
@@ -104,6 +111,8 @@ export const KEYWORDS: Record<string, TokenType> = {
   "for": TokenType.FOR,
   "in": TokenType.IN,
   "by": TokenType.BY,
+  "break": TokenType.BREAK,
+  "continue": TokenType.CONTINUE,
   "yield": TokenType.YIELD,
   "spawn": TokenType.SPAWN,
   "wait": TokenType.WAIT,

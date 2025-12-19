@@ -32,6 +32,21 @@ import {
   type SlateList,
 } from "@oort/core";
 
+// Control flow exceptions for break/continue
+class BreakException extends Error {
+  constructor() {
+    super("break");
+    this.name = "BreakException";
+  }
+}
+
+class ContinueException extends Error {
+  constructor() {
+    super("continue");
+    this.name = "ContinueException";
+  }
+}
+
 export type SignalHandler = {
   signal: string[];
   filter?: SlateValue;
@@ -118,6 +133,10 @@ export class Interpreter {
       case "TypeDef":
         // Types are compile-time only, no runtime effect
         return Null();
+      case "Break":
+        throw new BreakException();
+      case "Continue":
+        throw new ContinueException();
       default:
         throw new RuntimeError(`Unknown statement type: ${(stmt as any).type}`);
     }
@@ -192,7 +211,18 @@ export class Interpreter {
     const maxIterations = 10000; // Safety limit
 
     while (iterations < maxIterations) {
-      result = this.executeBlock(stmt.body, this.currentEnv.child());
+      try {
+        result = this.executeBlock(stmt.body, this.currentEnv.child());
+      } catch (e) {
+        if (e instanceof BreakException) {
+          break;
+        }
+        if (e instanceof ContinueException) {
+          iterations++;
+          continue;
+        }
+        throw e;
+      }
       iterations++;
     }
 
@@ -215,14 +245,34 @@ export class Interpreter {
       for (const element of iterable.elements) {
         const env = this.currentEnv.child();
         env.define(stmt.variable, element);
-        result = this.executeBlock(stmt.body, env);
+        try {
+          result = this.executeBlock(stmt.body, env);
+        } catch (e) {
+          if (e instanceof BreakException) {
+            break;
+          }
+          if (e instanceof ContinueException) {
+            continue;
+          }
+          throw e;
+        }
       }
     } else if (iterable.type === "number") {
       // Range from 0 to n
       for (let i = 0; i < iterable.value; i++) {
         const env = this.currentEnv.child();
         env.define(stmt.variable, Num(i));
-        result = this.executeBlock(stmt.body, env);
+        try {
+          result = this.executeBlock(stmt.body, env);
+        } catch (e) {
+          if (e instanceof BreakException) {
+            break;
+          }
+          if (e instanceof ContinueException) {
+            continue;
+          }
+          throw e;
+        }
       }
     } else {
       throw new RuntimeError(
@@ -285,6 +335,12 @@ export class Interpreter {
         return Color(expr.hex);
       case "With":
         return this.evaluateWith(expr);
+      case "NullCoalesce":
+        return this.evaluateNullCoalesce(expr);
+      case "Range":
+        return this.evaluateRange(expr);
+      case "InterpolatedString":
+        return this.evaluateInterpolatedString(expr);
       default:
         throw new RuntimeError(`Unknown expression type: ${(expr as any).type}`);
     }
@@ -598,6 +654,64 @@ export class Interpreter {
     }
 
     return Record(newFields);
+  }
+
+  private evaluateNullCoalesce(expr: { left: Expr; right: Expr }): SlateValue {
+    const left = this.evaluate(expr.left);
+    // Short-circuit: only evaluate right if left is null
+    if (left.type !== "null") {
+      return left;
+    }
+    return this.evaluate(expr.right);
+  }
+
+  private evaluateInterpolatedString(expr: {
+    parts: Array<
+      { kind: "literal"; value: string } | { kind: "expr"; expr: Expr }
+    >;
+  }): SlateValue {
+    const result = expr.parts
+      .map((part) => {
+        if (part.kind === "literal") {
+          return part.value;
+        } else {
+          return stringify(this.evaluate(part.expr));
+        }
+      })
+      .join("");
+    return Str(result);
+  }
+
+  private evaluateRange(expr: {
+    start: Expr;
+    end: Expr;
+    inclusive: boolean;
+  }): SlateValue {
+    const start = this.evaluate(expr.start);
+    const end = this.evaluate(expr.end);
+
+    if (!isNumber(start) || !isNumber(end)) {
+      throw new RuntimeError("Range bounds must be numbers");
+    }
+
+    const startVal = Math.floor(start.value);
+    const endVal = expr.inclusive
+      ? Math.floor(end.value) + 1
+      : Math.floor(end.value);
+
+    const elements: SlateValue[] = [];
+    if (startVal <= endVal) {
+      for (let i = startVal; i < endVal; i++) {
+        elements.push(Num(i));
+      }
+    } else {
+      // Descending range
+      for (let i = startVal; i > endVal; i--) {
+        elements.push(Num(i));
+      }
+    }
+
+    return List(elements);
   }
 
   // ============ Pattern Matching ============

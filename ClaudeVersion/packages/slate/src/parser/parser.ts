@@ -33,6 +33,10 @@ import {
   type ImportStmt,
   type LoopStmt,
   type ForStmt,
+  type BreakStmt,
+  type ContinueStmt,
+  type NullCoalesceExpr,
+  type InterpolatedStringExpr,
   type TypeExpr,
 } from "@oort/core";
 
@@ -73,6 +77,8 @@ export class Parser {
       if (this.check(TokenType.IMPORT)) return this.importStatement();
       if (this.check(TokenType.LOOP)) return this.loopStatement();
       if (this.check(TokenType.FOR)) return this.forStatement();
+      if (this.check(TokenType.BREAK)) return this.breakStatement();
+      if (this.check(TokenType.CONTINUE)) return this.continueStatement();
       if (this.check(TokenType.TYPE)) return this.typeStatement();
       return this.expressionStatement();
     } catch (e) {
@@ -270,6 +276,24 @@ export class Parser {
     };
   }
 
+  private breakStatement(): BreakStmt {
+    const keyword = this.advance(); // consume 'break'
+    return {
+      type: "Break",
+      line: keyword.line,
+      column: keyword.column,
+    };
+  }
+
+  private continueStatement(): ContinueStmt {
+    const keyword = this.advance(); // consume 'continue'
+    return {
+      type: "Continue",
+      line: keyword.line,
+      column: keyword.column,
+    };
+  }
+
   private typeStatement(): Stmt {
     const keyword = this.advance(); // consume 'type'
     const name = this.consume(TokenType.IDENTIFIER, "Expected type name");
@@ -426,7 +450,7 @@ export class Parser {
   }
 
   private assignment(): Expr {
-    const expr = this.or();
+    const expr = this.nullCoalesce();
 
     if (this.match(TokenType.EQUAL)) {
       const value = this.assignment();
@@ -446,6 +470,24 @@ export class Parser {
       }
 
       this.error(this.previous(), "Invalid assignment target");
+    }
+
+    return expr;
+  }
+
+  private nullCoalesce(): Expr {
+    let expr = this.or();
+
+    while (this.match(TokenType.QUESTION_QUESTION)) {
+      const operator = this.previous();
+      const right = this.or();
+      expr = {
+        type: "NullCoalesce",
+        left: expr,
+        right,
+        line: operator.line,
+        column: operator.column,
+      } as NullCoalesceExpr;
     }
 
     return expr;
@@ -509,7 +551,7 @@ export class Parser {
   }
 
   private comparison(): Expr {
-    let left = this.term();
+    let left = this.range();
 
     while (
       this.match(
@@ -520,7 +562,7 @@ export class Parser {
       )
     ) {
       const operator = this.previous();
-      const right = this.term();
+      const right = this.range();
       left = {
         type: "Binary",
         left,
@@ -532,6 +574,25 @@ export class Parser {
     }
 
     return left;
+  }
+
+  private range(): Expr {
+    let expr = this.term();
+
+    if (this.match(TokenType.DOT_DOT, TokenType.DOT_DOT_EQUAL)) {
+      const inclusive = this.previous().type === TokenType.DOT_DOT_EQUAL;
+      const end = this.term();
+      expr = {
+        type: "Range",
+        start: expr,
+        end,
+        inclusive,
+        line: expr.line,
+        column: expr.column,
+      };
+    }
+
+    return expr;
   }
 
   private term(): Expr {
@@ -704,6 +765,11 @@ export class Parser {
       };
     }
 
+    // Interpolated string: "Hello, {name}!"
+    if (this.match(TokenType.STRING_INTERP_START)) {
+      return this.interpolatedString();
+    }
+
     if (this.match(TokenType.TRUE)) {
       const token = this.previous();
       return {
@@ -793,6 +859,48 @@ export class Parser {
     }
 
     throw this.error(this.peek(), "Expected expression");
+  }
+
+  private interpolatedString(): InterpolatedStringExpr {
+    const startToken = this.previous();
+    const parts: Array<
+      { kind: "literal"; value: string } | { kind: "expr"; expr: Expr }
+    > = [];
+
+    // Add the first string part (from STRING_INTERP_START)
+    const firstPart = startToken.literal as string;
+    if (firstPart.length > 0) {
+      parts.push({ kind: "literal", value: firstPart });
+    }
+
+    // Parse the expression
+    parts.push({ kind: "expr", expr: this.expression() });
+
+    // Continue parsing MIDDLE and END tokens
+    while (this.match(TokenType.STRING_INTERP_MIDDLE)) {
+      const middlePart = this.previous().literal as string;
+      if (middlePart.length > 0) {
+        parts.push({ kind: "literal", value: middlePart });
+      }
+      parts.push({ kind: "expr", expr: this.expression() });
+    }
+
+    // Expect the END token
+    const endToken = this.consume(
+      TokenType.STRING_INTERP_END,
+      "Expected end of interpolated string"
+    );
+    const endPart = endToken.literal as string;
+    if (endPart.length > 0) {
+      parts.push({ kind: "literal", value: endPart });
+    }
+
+    return {
+      type: "InterpolatedString",
+      parts,
+      line: startToken.line,
+      column: startToken.column,
+    };
   }
 
   private ifExpression(): IfExpr {
