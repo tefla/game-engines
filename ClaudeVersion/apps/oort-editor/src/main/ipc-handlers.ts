@@ -153,12 +153,36 @@ export function setupIpcHandlers(): void {
       await fs.mkdir(path.join(projectPath, "assets"));
       await fs.mkdir(path.join(projectPath, "scenes"));
 
+      // Create default scene
+      const defaultScene = {
+        name: "Main Scene",
+        version: "1.0",
+        entities: [],
+        settings: {
+          backgroundColor: "#1a1a2e",
+          ambientLight: { color: "#ffffff", intensity: 0.4 },
+          directionalLight: {
+            color: "#ffffff",
+            intensity: 0.8,
+            position: [5, 10, 5],
+          },
+        },
+      };
+      await fs.writeFile(
+        path.join(projectPath, "scenes", "main.oort-scene"),
+        JSON.stringify(defaultScene, null, 2)
+      );
+
       // Create project.json
       const config = {
         name,
         version: "1.0.0",
         entry: "/scripts/main.sl",
         assets: ["/assets"],
+        mainScene: "/scenes/main.oort-scene",
+        settings: {
+          physics: false,
+        },
       };
       await fs.writeFile(
         path.join(projectPath, "project.json"),
@@ -214,6 +238,65 @@ main()
   ipcMain.handle(IPC.PROJECT_CLOSE, async () => {
     fileWatcher.stop();
     return { success: true };
+  });
+
+  // Scene operations
+  ipcMain.handle(IPC.SCENE_CREATE, async (_event, scenePath: string, name: string) => {
+    try {
+      const sceneConfig = {
+        name,
+        version: "1.0",
+        entities: [],
+        settings: {
+          backgroundColor: "#1a1a2e",
+          ambientLight: { color: "#ffffff", intensity: 0.4 },
+          directionalLight: {
+            color: "#ffffff",
+            intensity: 0.8,
+            position: [5, 10, 5],
+          },
+        },
+      };
+      await fs.writeFile(scenePath, JSON.stringify(sceneConfig, null, 2));
+      return { success: true, data: sceneConfig };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle(IPC.SCENE_OPEN, async (_event, scenePath: string) => {
+    try {
+      const content = await fs.readFile(scenePath, "utf-8");
+      const sceneConfig = JSON.parse(content);
+      return { success: true, data: sceneConfig };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle(IPC.SCENE_SAVE, async (_event, scenePath: string, sceneConfig: any) => {
+    try {
+      await fs.writeFile(scenePath, JSON.stringify(sceneConfig, null, 2));
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle(IPC.SCENE_LIST, async (_event, projectPath: string) => {
+    try {
+      const scenesDir = path.join(projectPath, "scenes");
+      const entries = await fs.readdir(scenesDir, { withFileTypes: true });
+      const scenes = entries
+        .filter(entry => entry.isFile() && entry.name.endsWith(".oort-scene"))
+        .map(entry => ({
+          name: entry.name.replace(".oort-scene", ""),
+          path: path.join(scenesDir, entry.name),
+        }));
+      return { success: true, data: scenes };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
   });
 
   // File watch control

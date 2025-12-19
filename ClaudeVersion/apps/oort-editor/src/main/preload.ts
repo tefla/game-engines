@@ -32,6 +32,15 @@ contextBridge.exposeInMainWorld("electronAPI", {
     ipcRenderer.invoke(IPC.PROJECT_CREATE, path, name),
   openProject: (path: string) => ipcRenderer.invoke(IPC.PROJECT_OPEN, path),
 
+  // Scene operations
+  createScene: (path: string, name: string) =>
+    ipcRenderer.invoke(IPC.SCENE_CREATE, path, name),
+  openScene: (path: string) => ipcRenderer.invoke(IPC.SCENE_OPEN, path),
+  saveScene: (path: string, sceneConfig: any) =>
+    ipcRenderer.invoke(IPC.SCENE_SAVE, path, sceneConfig),
+  listScenes: (projectPath: string) =>
+    ipcRenderer.invoke(IPC.SCENE_LIST, projectPath),
+
   // Window operations
   minimize: () => ipcRenderer.send(IPC.WINDOW_MINIMIZE),
   maximize: () => ipcRenderer.send(IPC.WINDOW_MAXIMIZE),
@@ -128,6 +137,10 @@ export interface ElectronAPI {
   showMessage: (options: any) => Promise<Electron.MessageBoxReturnValue>;
   createProject: (path: string, name: string) => Promise<{ success: boolean; data?: any; error?: string }>;
   openProject: (path: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  createScene: (path: string, name: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  openScene: (path: string) => Promise<{ success: boolean; data?: any; error?: string }>;
+  saveScene: (path: string, sceneConfig: any) => Promise<{ success: boolean; error?: string }>;
+  listScenes: (projectPath: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
   minimize: () => void;
   maximize: () => void;
   close: () => void;

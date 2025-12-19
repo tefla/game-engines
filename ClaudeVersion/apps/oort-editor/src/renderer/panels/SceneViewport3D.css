@@ -83,6 +83,13 @@
   letter-spacing: 0.5px;
 }
 
+.info-selected {
+  margin-left: 12px;
+  padding-left: 12px;
+  border-left: 1px solid var(--border);
+  color: var(--accent);
+}
+
 /* Stats overlay (optional) */
 .viewport-stats {
   position: absolute;

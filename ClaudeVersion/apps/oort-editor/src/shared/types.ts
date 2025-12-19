@@ -27,6 +27,58 @@ export interface ProjectConfig {
   version: string;
   entry: string;
   assets: string[];
+  mainScene?: string;
+  settings?: ProjectSettings;
+}
+
+export interface ProjectSettings {
+  physics?: boolean;
+  defaultBackgroundColor?: string;
+}
+
+// Scene types
+export interface SceneConfig {
+  name: string;
+  version: string;
+  entities: EntityConfig[];
+  settings?: SceneSettings;
+}
+
+export interface SceneSettings {
+  backgroundColor?: string;
+  ambientLight?: { color: string; intensity: number };
+  directionalLight?: {
+    color: string;
+    intensity: number;
+    position: [number, number, number];
+  };
+}
+
+export interface EntityConfig {
+  id: string;
+  name: string;
+  parentId?: string;
+  transform: TransformConfig;
+  components: ComponentConfig[];
+}
+
+export interface TransformConfig {
+  position: [number, number, number];
+  rotation: [number, number, number];
+  scale: [number, number, number];
+}
+
+export interface ComponentConfig {
+  type: string;
+  data: Record<string, any>;
+}
+
+// Entity hierarchy for Scene Hierarchy Panel
+export interface EntityNode {
+  id: string;
+  name: string;
+  children: EntityNode[];
+  expanded?: boolean;
 }
 
 export interface FileNode {

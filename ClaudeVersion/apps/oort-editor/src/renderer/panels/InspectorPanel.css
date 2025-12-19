@@ -85,3 +85,80 @@
   color: var(--text);
   word-break: break-word;
 }
+
+/* Transform inputs */
+.transform-group {
+  padding: 8px 0;
+}
+
+.transform-row {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 8px 4px;
+  border-radius: 4px;
+}
+
+.transform-row:hover {
+  background: var(--hover);
+}
+
+.transform-label {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.transform-inputs {
+  display: flex;
+  gap: 8px;
+}
+
+.transform-input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.axis-label {
+  font-size: 10px;
+  font-weight: 600;
+  width: 12px;
+  text-align: center;
+}
+
+.transform-input {
+  flex: 1;
+  width: 100%;
+  padding: 4px 6px;
+  font-size: 12px;
+  font-family: var(--font-mono);
+  color: var(--text);
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  text-align: right;
+}
+
+.transform-input:hover {
+  border-color: var(--border-hover);
+}
+
+.transform-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+/* Hide number input spinners */
+.transform-input::-webkit-outer-spin-button,
+.transform-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.transform-input[type=number] {
+  -moz-appearance: textfield;
+}

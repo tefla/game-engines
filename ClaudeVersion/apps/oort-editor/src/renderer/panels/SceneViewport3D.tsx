@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { PanelProps } from "@/core/panel-registry";
-import { threeService } from "@/core/three-service";
+import { threeService, type TransformMode, type TransformSpace } from "@/core/three-service";
 import { runtimeService } from "@/core/runtime-service";
 import { inputService } from "@/core/input-service";
 import { useMessageBus } from "@/hooks/useMessageBus";
@@ -15,6 +15,9 @@ export function SceneViewport3D({ panelId, instanceId }: PanelProps) {
   const [viewMode, setViewMode] = useState<ViewMode>("perspective");
   const [showGrid, setShowGrid] = useState(true);
   const [showAxes, setShowAxes] = useState(true);
+  const [transformMode, setTransformModeState] = useState<TransformMode>("translate");
+  const [transformSpace, setTransformSpaceState] = useState<TransformSpace>("world");
+  const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
   // Initialize Three.js scene
   useEffect(() => {
@@ -24,6 +27,10 @@ export function SceneViewport3D({ panelId, instanceId }: PanelProps) {
 
     // Create scene
     const state = threeService.createScene(instanceId, canvas);
+
+    // Enable transform controls
+    threeService.enableTransformControls(instanceId);
+    threeService.setTransformMode(instanceId, "translate");
 
     // Set this as the active viewport for entity rendering
     runtimeService.setActiveViewport(instanceId);
@@ -38,7 +45,7 @@ export function SceneViewport3D({ panelId, instanceId }: PanelProps) {
     // Start render loop
     threeService.startRenderLoop(instanceId);
 
-    // Add a test cube
+    // Add a test cube using the primitive method
     threeService.addPrimitive(instanceId, "box", {
       position: [0, 0.5, 0],
       color: 0x4a9eff,
@@ -69,6 +76,94 @@ export function SceneViewport3D({ panelId, instanceId }: PanelProps) {
     resizeObserver.observe(container);
     return () => resizeObserver.disconnect();
   }, [instanceId, isInitialized]);
+
+  // Handle click selection
+  const handleCanvasClick = useCallback(
+    (e: React.MouseEvent<HTMLCanvasElement>) => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
+
+      const rect = canvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+
+      const entityId = threeService.raycastSelect(
+        instanceId,
+        x,
+        y,
+        rect.width,
+        rect.height
+      );
+
+      threeService.selectEntity(instanceId, entityId);
+      setSelectedEntityId(entityId);
+    },
+    [instanceId]
+  );
+
+  // Handle keyboard shortcuts for transform modes
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Only handle if viewport is focused
+      if (!containerRef.current?.contains(document.activeElement) &&
+          document.activeElement !== containerRef.current) {
+        return;
+      }
+
+      switch (e.key.toLowerCase()) {
+        case "w":
+          setTransformMode("translate");
+          break;
+        case "e":
+          setTransformMode("rotate");
+          break;
+        case "r":
+          setTransformMode("scale");
+          break;
+        case "q":
+          toggleTransformSpace();
+          break;
+        case "escape":
+          threeService.selectEntity(instanceId, null);
+          setSelectedEntityId(null);
+          break;
+        case "delete":
+        case "backspace":
+          if (selectedEntityId) {
+            threeService.removeEntity(instanceId, selectedEntityId);
+            setSelectedEntityId(null);
+          }
+          break;
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [instanceId, selectedEntityId]);
+
+  // Transform mode setter
+  const setTransformMode = useCallback(
+    (mode: TransformMode) => {
+      threeService.setTransformMode(instanceId, mode);
+      setTransformModeState(mode);
+    },
+    [instanceId]
+  );
+
+  // Transform space toggler
+  const toggleTransformSpace = useCallback(() => {
+    const newSpace = transformSpace === "world" ? "local" : "world";
+    threeService.setTransformSpace(instanceId, newSpace);
+    setTransformSpaceState(newSpace);
+  }, [instanceId, transformSpace]);
+
+  // Listen for external entity selection (from hierarchy panel)
+  useMessageBus("entity:selected", (data) => {
+    if (data.viewportId !== instanceId) {
+      threeService.selectEntity(instanceId, data.entityId);
+      setSelectedEntityId(data.entityId);
+    }
+  });
 
   // Toggle grid visibility
   const toggleGrid = useCallback(() => {
@@ -153,11 +248,50 @@ export function SceneViewport3D({ panelId, instanceId }: PanelProps) {
   });
 
   return (
-    <div className="scene-viewport-3d" ref={containerRef}>
-      <canvas ref={canvasRef} className="viewport-canvas" />
+    <div className="scene-viewport-3d" ref={containerRef} tabIndex={0}>
+      <canvas
+        ref={canvasRef}
+        className="viewport-canvas"
+        onClick={handleCanvasClick}
+      />
 
       {/* Toolbar */}
       <div className="viewport-toolbar">
+        {/* Transform modes */}
+        <div className="toolbar-group">
+          <button
+            className={`toolbar-btn ${transformMode === "translate" ? "active" : ""}`}
+            onClick={() => setTransformMode("translate")}
+            title="Move (W)"
+          >
+            ↔
+          </button>
+          <button
+            className={`toolbar-btn ${transformMode === "rotate" ? "active" : ""}`}
+            onClick={() => setTransformMode("rotate")}
+            title="Rotate (E)"
+          >
+            ↻
+          </button>
+          <button
+            className={`toolbar-btn ${transformMode === "scale" ? "active" : ""}`}
+            onClick={() => setTransformMode("scale")}
+            title="Scale (R)"
+          >
+            ⤢
+          </button>
+          <button
+            className={`toolbar-btn ${transformSpace === "local" ? "active" : ""}`}
+            onClick={toggleTransformSpace}
+            title={`${transformSpace === "world" ? "World" : "Local"} Space (Q)`}
+          >
+            {transformSpace === "world" ? "W" : "L"}
+          </button>
+        </div>
+
+        <div className="toolbar-separator" />
+
+        {/* View modes */}
         <div className="toolbar-group">
           <button
             className={`toolbar-btn ${viewMode === "perspective" ? "active" : ""}`}
@@ -240,6 +374,11 @@ export function SceneViewport3D({ panelId, instanceId }: PanelProps) {
         <span className="info-label">
           {viewMode.charAt(0).toUpperCase() + viewMode.slice(1)}
         </span>
+        {selectedEntityId && (
+          <span className="info-selected">
+            Selected: {selectedEntityId}
+          </span>
+        )}
       </div>
     </div>
   );

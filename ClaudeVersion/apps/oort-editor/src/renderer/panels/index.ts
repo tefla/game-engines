@@ -10,6 +10,7 @@ import { AssetBrowser } from "./AssetBrowser";
 import { SceneViewport } from "./SceneViewport";
 import { SceneViewport3D } from "./SceneViewport3D";
 import { GameStatsPanel } from "./GameStatsPanel";
+import { SceneHierarchyPanel } from "./SceneHierarchyPanel";
 
 // Register all builtin panels
 export function registerBuiltinPanels(): void {
@@ -47,6 +48,15 @@ export function registerBuiltinPanels(): void {
     icon: "🔍",
     component: InspectorPanel,
     defaultLocation: "right",
+    singleton: true,
+  });
+
+  panelRegistry.register({
+    id: "scene-hierarchy",
+    title: "Hierarchy",
+    icon: "🌳",
+    component: SceneHierarchyPanel,
+    defaultLocation: "left",
     singleton: true,
   });
 
@@ -98,3 +108,4 @@ export { SceneViewport } from "./SceneViewport";
 export { SceneViewport3D } from "./SceneViewport3D";
 export { WelcomePanel } from "./WelcomePanel";
 export { GameStatsPanel } from "./GameStatsPanel";
+export { SceneHierarchyPanel } from "./SceneHierarchyPanel";

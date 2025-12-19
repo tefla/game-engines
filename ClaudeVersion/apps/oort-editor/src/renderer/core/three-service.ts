@@ -10,6 +10,7 @@
 
 import * as THREE from "three";
 import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
+import { TransformControls } from "three/examples/jsm/controls/TransformControls.js";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { messageBus } from "./message-bus";
 
@@ -18,9 +19,16 @@ export interface Scene3DState {
   camera: THREE.PerspectiveCamera;
   renderer: THREE.WebGLRenderer;
   controls: OrbitControls;
+  transformControls: TransformControls | null;
   entities: Map<string, THREE.Object3D>;
   animationId: number | null;
+  selectedEntity: string | null;
+  raycaster: THREE.Raycaster;
+  mouse: THREE.Vector2;
 }
+
+export type TransformMode = "translate" | "rotate" | "scale";
+export type TransformSpace = "world" | "local";
 
 export interface Entity3DOptions {
   id: string;
@@ -86,8 +94,12 @@ class ThreeService {
       camera,
       renderer,
       controls,
+      transformControls: null,
       entities: new Map(),
       animationId: null,
+      selectedEntity: null,
+      raycaster: new THREE.Raycaster(),
+      mouse: new THREE.Vector2(),
     };
 
     // Setup default scene elements
@@ -418,6 +430,229 @@ class ThreeService {
   }
 
   /**
+   * Enable transform gizmo for a viewport
+   */
+  enableTransformControls(viewportId: string): void {
+    const state = this.scenes.get(viewportId);
+    if (!state || state.transformControls) return;
+
+    const transformControls = new TransformControls(
+      state.camera,
+      state.renderer.domElement
+    );
+
+    // Disable orbit controls while using transform controls
+    transformControls.addEventListener("dragging-changed", (event) => {
+      state.controls.enabled = !event.value;
+    });
+
+    // Emit transform changes
+    transformControls.addEventListener("objectChange", () => {
+      if (state.selectedEntity) {
+        const entity = state.entities.get(state.selectedEntity);
+        if (entity) {
+          messageBus.emit("entity:transform-changed", {
+            entityId: state.selectedEntity,
+            position: [entity.position.x, entity.position.y, entity.position.z],
+            rotation: [
+              entity.rotation.x * 180 / Math.PI,
+              entity.rotation.y * 180 / Math.PI,
+              entity.rotation.z * 180 / Math.PI,
+            ],
+            scale: [entity.scale.x, entity.scale.y, entity.scale.z],
+          });
+        }
+      }
+    });
+
+    state.scene.add(transformControls as unknown as THREE.Object3D);
+    state.transformControls = transformControls;
+  }
+
+  /**
+   * Disable transform gizmo for a viewport
+   */
+  disableTransformControls(viewportId: string): void {
+    const state = this.scenes.get(viewportId);
+    if (!state || !state.transformControls) return;
+
+    state.transformControls.detach();
+    state.scene.remove(state.transformControls as unknown as THREE.Object3D);
+    state.transformControls.dispose();
+    state.transformControls = null;
+  }
+
+  /**
+   * Set transform control mode
+   */
+  setTransformMode(viewportId: string, mode: TransformMode): void {
+    const state = this.scenes.get(viewportId);
+    if (!state?.transformControls) return;
+
+    state.transformControls.setMode(mode);
+    messageBus.emit("transform:mode-changed", { viewportId, mode });
+  }
+
+  /**
+   * Get current transform mode
+   */
+  getTransformMode(viewportId: string): TransformMode | null {
+    const state = this.scenes.get(viewportId);
+    if (!state?.transformControls) return null;
+    return state.transformControls.mode as TransformMode;
+  }
+
+  /**
+   * Set transform space (world or local)
+   */
+  setTransformSpace(viewportId: string, space: TransformSpace): void {
+    const state = this.scenes.get(viewportId);
+    if (!state?.transformControls) return;
+
+    state.transformControls.setSpace(space);
+    messageBus.emit("transform:space-changed", { viewportId, space });
+  }
+
+  /**
+   * Get current transform space
+   */
+  getTransformSpace(viewportId: string): TransformSpace | null {
+    const state = this.scenes.get(viewportId);
+    if (!state?.transformControls) return null;
+    return state.transformControls.space as TransformSpace;
+  }
+
+  /**
+   * Select an entity by ID
+   */
+  selectEntity(viewportId: string, entityId: string | null): void {
+    const state = this.scenes.get(viewportId);
+    if (!state) return;
+
+    // Deselect previous
+    if (state.selectedEntity) {
+      const prev = state.entities.get(state.selectedEntity);
+      if (prev) {
+        this.setEntityHighlight(prev, false);
+      }
+    }
+
+    state.selectedEntity = entityId;
+
+    if (entityId) {
+      const entity = state.entities.get(entityId);
+      if (entity) {
+        // Highlight selected entity
+        this.setEntityHighlight(entity, true);
+
+        // Attach transform controls
+        if (state.transformControls) {
+          state.transformControls.attach(entity);
+        }
+
+        messageBus.emit("entity:selected", { entityId, viewportId });
+        messageBus.emit("selection:changed", {
+          target: {
+            type: "Entity",
+            name: entity.name || entityId,
+            properties: {
+              position: `(${entity.position.x.toFixed(2)}, ${entity.position.y.toFixed(2)}, ${entity.position.z.toFixed(2)})`,
+              rotation: `(${(entity.rotation.x * 180 / Math.PI).toFixed(1)}°, ${(entity.rotation.y * 180 / Math.PI).toFixed(1)}°, ${(entity.rotation.z * 180 / Math.PI).toFixed(1)}°)`,
+              scale: `(${entity.scale.x.toFixed(2)}, ${entity.scale.y.toFixed(2)}, ${entity.scale.z.toFixed(2)})`,
+              visible: entity.visible,
+            },
+          },
+        });
+      }
+    } else {
+      // Detach transform controls
+      if (state.transformControls) {
+        state.transformControls.detach();
+      }
+      messageBus.emit("entity:deselected", { viewportId });
+      messageBus.emit("selection:changed", { target: null });
+    }
+  }
+
+  /**
+   * Get selected entity ID
+   */
+  getSelectedEntity(viewportId: string): string | null {
+    const state = this.scenes.get(viewportId);
+    return state?.selectedEntity || null;
+  }
+
+  /**
+   * Set entity highlight (selection indicator)
+   */
+  private setEntityHighlight(entity: THREE.Object3D, highlighted: boolean): void {
+    entity.traverse((child) => {
+      if (child instanceof THREE.Mesh) {
+        if (highlighted) {
+          // Store original material
+          if (!child.userData.originalMaterial) {
+            child.userData.originalMaterial = child.material;
+          }
+          // Create highlighted material
+          const material = (child.material as THREE.MeshStandardMaterial).clone();
+          material.emissive = new THREE.Color(0x4a9eff);
+          material.emissiveIntensity = 0.3;
+          child.material = material;
+        } else {
+          // Restore original material
+          if (child.userData.originalMaterial) {
+            child.material = child.userData.originalMaterial;
+            delete child.userData.originalMaterial;
+          }
+        }
+      }
+    });
+  }
+
+  /**
+   * Perform raycast selection from mouse coordinates
+   */
+  raycastSelect(
+    viewportId: string,
+    mouseX: number,
+    mouseY: number,
+    canvasWidth: number,
+    canvasHeight: number
+  ): string | null {
+    const state = this.scenes.get(viewportId);
+    if (!state) return null;
+
+    // Convert to normalized device coordinates
+    state.mouse.x = (mouseX / canvasWidth) * 2 - 1;
+    state.mouse.y = -(mouseY / canvasHeight) * 2 + 1;
+
+    // Update raycaster
+    state.raycaster.setFromCamera(state.mouse, state.camera);
+
+    // Get all entity objects
+    const entityObjects: THREE.Object3D[] = [];
+    for (const entity of state.entities.values()) {
+      entityObjects.push(entity);
+    }
+
+    // Perform raycast
+    const intersects = state.raycaster.intersectObjects(entityObjects, true);
+
+    if (intersects.length > 0) {
+      // Find the entity that owns the intersected object
+      let object: THREE.Object3D | null = intersects[0].object;
+      while (object) {
+        if (object.userData?.entityId) {
+          return object.userData.entityId;
+        }
+        object = object.parent;
+      }
+    }
+
+    return null;
+  }
+
+  /**
    * Dispose a scene and all its resources
    */
   disposeScene(viewportId: string): void {
@@ -426,6 +661,13 @@ class ThreeService {
 
     // Stop render loop
     this.stopRenderLoop(viewportId);
+
+    // Dispose transform controls
+    if (state.transformControls) {
+      state.transformControls.detach();
+      state.scene.remove(state.transformControls as unknown as THREE.Object3D);
+      state.transformControls.dispose();
+    }
 
     // Dispose all entities
     for (const entityId of state.entities.keys()) {

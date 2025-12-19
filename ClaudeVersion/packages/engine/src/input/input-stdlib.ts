@@ -122,14 +122,12 @@ export function createInputStdlib(
             throw new Error("getInputState: action must be a string");
           }
           const state = inputManager.getInputState(action.value);
-          return Record(
-            new Map([
-              ["pressed", Bool(state.pressed)],
-              ["justPressed", Bool(state.justPressed)],
-              ["justReleased", Bool(state.justReleased)],
-              ["duration", Num(state.duration)],
-            ])
-          );
+          const fields = new Map<string, SlateValue>();
+          fields.set("pressed", Bool(state.pressed));
+          fields.set("justPressed", Bool(state.justPressed));
+          fields.set("justReleased", Bool(state.justReleased));
+          fields.set("duration", Num(state.duration));
+          return Record(fields);
         },
       },
     ],

@@ -8,6 +8,12 @@ export const IPC = {
   PROJECT_CLOSE: "project:close",
   PROJECT_OPENED: "project:opened",
 
+  // Scene operations
+  SCENE_CREATE: "scene:create",
+  SCENE_OPEN: "scene:open",
+  SCENE_SAVE: "scene:save",
+  SCENE_LIST: "scene:list",
+
   // File operations
   FILE_READ: "file:read",
   FILE_READ_BINARY: "file:read-binary",
