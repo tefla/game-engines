@@ -290,6 +290,88 @@ describe("Macro System - Compatibility Tests", () => {
     });
   });
 
+  describe("pattern matching", () => {
+    it("matches literal patterns", async () => {
+      const result = await run(dedent(`
+        match 42:
+          42 => "forty-two"
+          _ => "other"
+      `));
+      expect(result).toBe("forty-two");
+    });
+
+    it("matches wildcard pattern", async () => {
+      const result = await run(dedent(`
+        match 99:
+          42 => "forty-two"
+          _ => "other"
+      `));
+      expect(result).toBe("other");
+    });
+
+    it("binds variables in patterns", async () => {
+      const result = await run(dedent(`
+        match 10:
+          x => x * 2
+      `));
+      expect(result).toBe(20);
+    });
+
+    it("matches record patterns", async () => {
+      const result = await run(dedent(`
+        let point = {x: 3, y: 4}
+        match point:
+          {x: 0, y: 0} => "origin"
+          {x, y} => x + y
+      `));
+      expect(result).toBe(7);
+    });
+
+    it("matches list patterns", async () => {
+      const result = await run(dedent(`
+        let items = [1, 2, 3]
+        match items:
+          [] => "empty"
+          [a] => "single"
+          [a, b, ..rest] => a + b
+      `));
+      expect(result).toBe(3);
+    });
+
+    it("matches with guards", async () => {
+      const result = await run(dedent(`
+        let n = 5
+        match n:
+          x if x < 0 => "negative"
+          x if x == 0 => "zero"
+          x if x > 0 => "positive"
+      `));
+      expect(result).toBe("positive");
+    });
+
+    it("matches negative number with guard", async () => {
+      const result = await run(dedent(`
+        let n = -3
+        match n:
+          x if x < 0 => "negative"
+          x if x == 0 => "zero"
+          x => "positive"
+      `));
+      expect(result).toBe("negative");
+    });
+
+    it("uses bound variables in guards", async () => {
+      const result = await run(dedent(`
+        let pair = {a: 5, b: 3}
+        match pair:
+          {a, b} if a > b => "a is bigger"
+          {a, b} if b > a => "b is bigger"
+          _ => "equal"
+      `));
+      expect(result).toBe("a is bigger");
+    });
+  });
+
   describe("complex programs", () => {
     it("runs the door puzzle example", async () => {
       const result = await run(dedent(`

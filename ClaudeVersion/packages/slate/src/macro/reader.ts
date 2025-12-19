@@ -211,14 +211,34 @@ export class Reader {
     const matchTok = this.advance();
     const subject = this.readExpr();
     this.consume(TokenType.COLON, "Expected ':' after match subject");
+    this.skipNewlines();
     this.consume(TokenType.INDENT, "Expected indented match arms");
 
     const arms: Syntax[] = [];
     while (!this.check(TokenType.DEDENT) && !this.isAtEnd()) {
+      this.skipNewlines();
+      if (this.check(TokenType.DEDENT)) break;
+
       const pattern = this.readPattern();
+
+      // Check for guard: pattern if guard_expr => body
+      let guard: Syntax | null = null;
+      if (this.check(TokenType.IF)) {
+        this.advance(); // consume 'if'
+        guard = this.readExpr();
+      }
+
       this.consume(TokenType.ARROW, "Expected '=>' after pattern");
       const body = this.readExpr();
-      arms.push(stxList([pattern, body], pattern.loc));
+
+      // Create arm structure: [pattern, body] or [pattern, guard, body]
+      if (guard) {
+        arms.push(stxList([pattern, guard, body], pattern.loc));
+      } else {
+        arms.push(stxList([pattern, body], pattern.loc));
+      }
+
+      this.skipNewlines();
     }
 
     this.consume(TokenType.DEDENT, "Expected end of match block");

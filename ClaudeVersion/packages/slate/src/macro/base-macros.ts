@@ -110,12 +110,15 @@ export function installBaseMacros(expander: Expander): void {
     ], stx.loc);
   });
 
-  // 'match' macro - pattern matching
+  // 'match' macro - pattern matching with optional guards
   expander.defineProc("match", (stx, exp) => {
     const [_, subject, ...arms] = listElements(stx as SyntaxList);
 
     // Create a temp variable for the subject
     const tempVar = stxSym("__match-subject", stx.loc);
+
+    // Counter for unique variable names per arm
+    let armCounter = 0;
 
     // Build nested if-else chain
     function buildMatch(remaining: Syntax[]): Syntax {
@@ -128,38 +131,102 @@ export function installBaseMacros(expander: Expander): void {
 
       const arm = remaining[0];
       if (!isList(arm)) {
-        throw new Error("match arm must be [pattern, body]");
+        throw new Error("match arm must be [pattern, body] or [pattern, guard, body]");
       }
 
-      const [pattern, body] = listElements(arm);
+      const elements = listElements(arm);
+      let pattern: Syntax;
+      let guard: Syntax | null = null;
+      let body: Syntax;
+
+      if (elements.length === 2) {
+        // No guard: [pattern, body]
+        [pattern, body] = elements;
+      } else if (elements.length === 3) {
+        // With guard: [pattern, guard, body]
+        [pattern, guard, body] = elements;
+      } else {
+        throw new Error("match arm must have 2 or 3 elements");
+      }
 
       // Generate match condition and bindings
       const { condition, bindings } = compilePattern(pattern, tempVar, stx.loc);
 
-      // Wrap body with let bindings
-      let wrappedBody = body;
-      for (const [name, expr] of bindings) {
-        wrappedBody = stxList([
-          stxSym("let", stx.loc),
-          stxSym(name, stx.loc),
+      // Helper to wrap an expression with let bindings (only for body, not guard)
+      const wrapWithBindings = (expr: Syntax): Syntax => {
+        if (bindings.length === 0) {
+          return expr;
+        }
+
+        const letForms = bindings.map(([name, accessExpr]) =>
+          stxList([
+            stxSym("let", stx.loc),
+            stxSym(name, stx.loc),
+            accessExpr,
+          ], stx.loc)
+        );
+
+        return stxList([
+          stxSym("begin", stx.loc),
+          ...letForms,
           expr,
+        ], stx.loc);
+      };
+
+      // Helper to substitute variable references in an expression
+      // This replaces bound variable names with their access expressions
+      const substituteVars = (expr: Syntax): Syntax => {
+        if (bindings.length === 0) return expr;
+
+        const subMap = new Map<string, Syntax>();
+        for (const [name, accessExpr] of bindings) {
+          subMap.set(name, accessExpr);
+        }
+
+        return substituteInSyntax(expr, subMap);
+      };
+
+      if (guard) {
+        // For guards: substitute access expressions directly into guard (no let bindings)
+        // This avoids defining variables that would conflict when guard fails
+        // Structure: (if (and pattern-cond substituted-guard) (let bindings body) next-arm)
+        const substitutedGuard = substituteVars(guard);
+        const fullCondition = stxList([
+          stxSym("and", stx.loc),
+          condition,
+          substitutedGuard,
+        ], stx.loc);
+        const wrappedBody = wrapWithBindings(body);
+
+        return stxList([
+          stxSym("if", stx.loc),
+          fullCondition,
           wrappedBody,
+          buildMatch(remaining.slice(1)),
+        ], stx.loc);
+      } else {
+        // Without guard: standard pattern match
+        const wrappedBody = wrapWithBindings(body);
+
+        return stxList([
+          stxSym("if", stx.loc),
+          condition,
+          wrappedBody,
+          buildMatch(remaining.slice(1)),
         ], stx.loc);
       }
-
-      return stxList([
-        stxSym("if", stx.loc),
-        condition,
-        wrappedBody,
-        buildMatch(remaining.slice(1)),
-      ], stx.loc);
     }
 
-    // Wrap in let for subject
+    // Wrap in begin with let for subject, then the match body
+    // Note: Slate's let is (let name value), not (let name value body)
+    // so we use (begin (let name value) body)
     return stxList([
-      stxSym("let", stx.loc),
-      tempVar,
-      subject,
+      stxSym("begin", stx.loc),
+      stxList([
+        stxSym("let", stx.loc),
+        tempVar,
+        subject,
+      ], stx.loc),
       buildMatch(arms),
     ], stx.loc);
   });
@@ -344,7 +411,7 @@ function compilePattern(pattern: Syntax, subject: Syntax, defaultLoc: any): Comp
     };
   }
 
-  // Record pattern
+  // Record pattern (native syntax record)
   if (isRecord(pattern)) {
     const conditions: Syntax[] = [];
     const bindings: [string, Syntax][] = [];
@@ -371,15 +438,63 @@ function compilePattern(pattern: Syntax, subject: Syntax, defaultLoc: any): Comp
     return { condition, bindings };
   }
 
-  // List pattern (e.g., [a, b, ..rest])
+  // Handle list patterns from reader
   if (isList(pattern)) {
     const elements = listElements(pattern);
+
+    // Check for record-pattern marker from reader: (record-pattern (key pattern) ...)
+    if (elements.length > 0 && isSymbol(elements[0]) && symbolName(elements[0]) === "record-pattern") {
+      const fieldSpecs = elements.slice(1);
+      const conditions: Syntax[] = [];
+      const bindings: [string, Syntax][] = [];
+
+      for (const fieldSpec of fieldSpecs) {
+        let key: string;
+        let fieldPattern: Syntax;
+
+        if (isSymbol(fieldSpec)) {
+          // Shorthand: {x} means bind x to subject.x
+          key = symbolName(fieldSpec);
+          fieldPattern = fieldSpec; // Variable binding
+        } else if (isList(fieldSpec)) {
+          // Full form: (key pattern)
+          const [keyStx, patternStx] = listElements(fieldSpec);
+          if (!isSymbol(keyStx)) throw new Error("Record pattern key must be identifier");
+          key = symbolName(keyStx);
+          fieldPattern = patternStx;
+        } else {
+          throw new Error("Invalid record pattern field");
+        }
+
+        const fieldAccess = stxList([
+          stxSym(".", defaultLoc),
+          subject,
+          stxSym(key, defaultLoc),
+        ], defaultLoc);
+
+        const compiled = compilePattern(fieldPattern, fieldAccess, defaultLoc);
+        conditions.push(compiled.condition);
+        bindings.push(...compiled.bindings);
+      }
+
+      const condition = conditions.length === 0
+        ? makeSyntax(true, defaultLoc)
+        : conditions.reduce((a, b) =>
+            stxList([stxSym("and", defaultLoc), a, b], defaultLoc)
+          );
+
+      return { condition, bindings };
+    }
 
     // Check for list-pattern marker
     if (elements.length > 0 && isSymbol(elements[0]) && symbolName(elements[0]) === "list-pattern") {
       const patternElements = elements.slice(1);
       const conditions: Syntax[] = [];
       const bindings: [string, Syntax][] = [];
+
+      // Check if there's a rest pattern
+      let hasRest = false;
+      let fixedCount = patternElements.length;
 
       for (let i = 0; i < patternElements.length; i++) {
         const elemPattern = patternElements[i];
@@ -389,6 +504,9 @@ function compilePattern(pattern: Syntax, subject: Syntax, defaultLoc: any): Comp
             listElements(elemPattern).length === 2 &&
             isSymbol(listElements(elemPattern)[0]) &&
             symbolName(listElements(elemPattern)[0]) === "...") {
+          hasRest = true;
+          fixedCount = i; // Number of elements before rest
+
           // Rest binding
           const restVar = listElements(elemPattern)[1];
           if (!isSymbol(restVar)) throw new Error("Rest pattern must be identifier");
@@ -415,11 +533,23 @@ function compilePattern(pattern: Syntax, subject: Syntax, defaultLoc: any): Comp
         bindings.push(...compiled.bindings);
       }
 
-      const condition = conditions.length === 0
-        ? makeSyntax(true, defaultLoc)
-        : conditions.reduce((a, b) =>
-            stxList([stxSym("and", defaultLoc), a, b], defaultLoc)
-          );
+      // Add length check condition
+      // For [a, b]: len(subject) == 2
+      // For [a, b, ..rest]: len(subject) >= 2
+      const lenCheck = stxList([
+        stxSym("len", defaultLoc),
+        subject,
+      ], defaultLoc);
+
+      const lengthCondition = hasRest
+        ? stxList([stxSym(">=", defaultLoc), lenCheck, makeSyntax(fixedCount, defaultLoc)], defaultLoc)
+        : stxList([stxSym("==", defaultLoc), lenCheck, makeSyntax(fixedCount, defaultLoc)], defaultLoc);
+
+      conditions.unshift(lengthCondition);
+
+      const condition = conditions.reduce((a, b) =>
+        stxList([stxSym("and", defaultLoc), a, b], defaultLoc)
+      );
 
       return { condition, bindings };
     }
@@ -445,6 +575,39 @@ function signalToString(signal: Syntax): Syntax {
   }
 
   throw new Error("Invalid signal path");
+}
+
+/**
+ * Substitute variable references in a syntax tree with their replacement expressions.
+ * This is used to inline access expressions into guards without defining variables.
+ */
+function substituteInSyntax(stx: Syntax, subMap: Map<string, Syntax>): Syntax {
+  // Symbol: check if it should be substituted
+  if (isSymbol(stx)) {
+    const name = symbolName(stx);
+    const replacement = subMap.get(name);
+    return replacement ?? stx;
+  }
+
+  // List: recursively substitute in elements
+  if (isList(stx)) {
+    const elements = listElements(stx);
+    const newElements = elements.map(e => substituteInSyntax(e, subMap));
+    return stxList(newElements, stx.loc);
+  }
+
+  // Record: recursively substitute in field values
+  if (isRecord(stx)) {
+    const newFields: [string, Syntax][] = [];
+    for (const key of recordKeys(stx)) {
+      const value = recordGet(stx, key)!;
+      newFields.push([key, substituteInSyntax(value, subMap)]);
+    }
+    return stxRecord(newFields, stx.loc);
+  }
+
+  // Primitives: no substitution needed
+  return stx;
 }
 
 // ============ Install Runtime Functions ============
