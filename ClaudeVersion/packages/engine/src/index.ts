@@ -3,3 +3,4 @@ export * from "./vfs";
 export * from "./signals";
 export * from "./runtime";
 export * from "./renderer3d";
+export * from "./input";

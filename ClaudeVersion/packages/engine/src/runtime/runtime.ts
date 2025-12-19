@@ -11,6 +11,7 @@ import { Interpreter, parseSlate, stdlib } from "@oort/slate";
 import { SignalBus, type SignalPath, createSignalStdlib } from "../signals";
 import { VirtualFileSystem, createVfsStdlib } from "../vfs";
 import { sceneStdlib } from "../renderer3d/scene-stdlib";
+import { InputManager, createInputStdlib } from "../input";
 
 // Extended interpreter that bridges internal signals to SignalBus
 class RuntimeInterpreter extends Interpreter {
@@ -33,6 +34,7 @@ class RuntimeInterpreter extends Interpreter {
 export interface RuntimeOptions {
   vfs?: VirtualFileSystem;
   signalBus?: SignalBus;
+  inputManager?: InputManager;
   globals?: Map<string, SlateValue>;
   onOutput?: (message: string) => void;
 }
@@ -43,6 +45,7 @@ export class Runtime {
   private interpreter!: Interpreter;
   private signalBus: SignalBus;
   private vfs: VirtualFileSystem;
+  private inputManager: InputManager;
   private outputHandler: (message: string) => void;
   private globals: Map<string, SlateValue>;
 
@@ -55,7 +58,11 @@ export class Runtime {
   constructor(options: RuntimeOptions = {}) {
     this.signalBus = options.signalBus ?? new SignalBus();
     this.vfs = options.vfs ?? VirtualFileSystem.createGameFileSystem();
+    this.inputManager = options.inputManager ?? new InputManager();
     this.outputHandler = options.onOutput ?? console.log;
+
+    // Connect input manager to signal bus for input signals
+    this.inputManager.setSignalBus(this.signalBus);
 
     // Build globals map with all stdlib functions
     this.globals = new Map<string, SlateValue>();
@@ -81,6 +88,12 @@ export class Runtime {
     // Add signal functions
     const signalStdlib = createSignalStdlib(this.signalBus);
     for (const [name, fn] of signalStdlib) {
+      this.globals.set(name, fn);
+    }
+
+    // Add input functions
+    const inputStdlib = createInputStdlib(this.inputManager);
+    for (const [name, fn] of inputStdlib) {
       this.globals.set(name, fn);
     }
 
@@ -177,6 +190,11 @@ export class Runtime {
     return this.interpreter;
   }
 
+  // Get the InputManager instance
+  getInputManager(): InputManager {
+    return this.inputManager;
+  }
+
   // Get output history from interpreter
   getOutput(): string[] {
     return this.interpreter.getOutput();
@@ -237,8 +255,14 @@ export class Runtime {
       this.lastTime = currentTime;
       this.accumulatedTime += deltaSec;
 
-      // Emit tick signal
+      // Update input state (before game logic)
+      this.inputManager.update(deltaSec);
+
+      // Emit tick signal (game logic runs here)
       this.tick(deltaSec);
+
+      // End input frame (after game logic)
+      this.inputManager.endFrame();
 
       // Schedule next frame
       this.animationFrameId = requestAnimationFrame(loop);
@@ -255,6 +279,9 @@ export class Runtime {
       cancelAnimationFrame(this.animationFrameId);
       this.animationFrameId = null;
     }
+
+    // Clear input state when game stops
+    this.inputManager.clearState();
 
     this.gameState = "stopped";
     this.emit("game.stop");
