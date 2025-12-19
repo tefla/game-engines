@@ -13,7 +13,7 @@
     "test:e2e": "bun run --filter '@oort/editor-app' test:e2e",
     "build": "bun run --filter '*' build",
     "dev": "bun run --filter puzzle-demo dev",
-    "editor": "npm run dev --workspace @oort/editor-app"
+    "editor": "bun run --filter '@oort/editor-app' dev"
   },
   "devDependencies": {
     "@types/bun": "latest",
