@@ -37,12 +37,17 @@ import {
   type ContinueStmt,
   type NullCoalesceExpr,
   type InterpolatedStringExpr,
+  type OptionalMemberExpr,
+  type OptionalIndexExpr,
+  type OptionalCallExpr,
+  type LambdaExpr,
   type TypeExpr,
 } from "@oort/core";
 
 export class Parser {
   private tokens: Token[];
   private current = 0;
+  private allowJuxtaposition = true; // Disable inside lambda bodies
 
   constructor(tokens: Token[]) {
     // Filter out NEWLINE tokens except when they are significant
@@ -677,13 +682,41 @@ export class Parser {
           line: expr.line,
           column: expr.column,
         };
+      } else if (this.match(TokenType.QUESTION_DOT)) {
+        // Optional member access: obj?.prop
+        const name = this.consume(
+          TokenType.IDENTIFIER,
+          "Expected property name after '?.'"
+        );
+        expr = {
+          type: "OptionalMember",
+          object: expr,
+          property: name.lexeme,
+          line: name.line,
+          column: name.column,
+        } as OptionalMemberExpr;
+      } else if (this.match(TokenType.QUESTION_BRACKET)) {
+        // Optional index access: obj?[index]
+        const index = this.expression();
+        this.consume(TokenType.RIGHT_BRACKET, "Expected ']' after index");
+        expr = {
+          type: "OptionalIndex",
+          object: expr,
+          index,
+          line: expr.line,
+          column: expr.column,
+        } as OptionalIndexExpr;
+      } else if (this.match(TokenType.QUESTION_PAREN)) {
+        // Optional call: func?()
+        expr = this.finishOptionalCall(expr);
       } else {
         break;
       }
     }
 
     // Handle juxtaposition function calls (e.g., say "hello")
-    if (expr.type === "Identifier" && this.canBeArgument()) {
+    // Disabled inside lambda bodies to prevent consuming next statement
+    if (this.allowJuxtaposition && expr.type === "Identifier" && this.canBeArgument()) {
       const args = this.juxtapositionArgs();
       if (args.length > 0) {
         expr = {
@@ -743,6 +776,62 @@ export class Parser {
     };
   }
 
+  private finishOptionalCall(callee: Expr): OptionalCallExpr {
+    const args: Expr[] = [];
+
+    if (!this.check(TokenType.RIGHT_PAREN)) {
+      do {
+        // Support trailing commas - check for closing paren after comma
+        if (this.check(TokenType.RIGHT_PAREN)) break;
+        args.push(this.expression());
+      } while (this.match(TokenType.COMMA));
+    }
+
+    this.consume(TokenType.RIGHT_PAREN, "Expected ')' after arguments");
+
+    return {
+      type: "OptionalCall",
+      callee,
+      args,
+      line: callee.line,
+      column: callee.column,
+    };
+  }
+
+  private lambdaExpression(): LambdaExpr {
+    const startToken = this.previous(); // The opening PIPE
+    const params: Array<{ name: string; typeAnnotation?: TypeExpr }> = [];
+
+    // Parse parameters until closing |
+    if (!this.check(TokenType.PIPE)) {
+      do {
+        const paramName = this.consume(
+          TokenType.IDENTIFIER,
+          "Expected parameter name"
+        );
+        // TODO: Optional type annotation with :Type syntax
+        params.push({ name: paramName.lexeme });
+      } while (this.match(TokenType.COMMA));
+    }
+
+    this.consume(TokenType.PIPE, "Expected '|' after lambda parameters");
+
+    // Parse the body expression with juxtaposition disabled
+    // to prevent consuming tokens from the next statement
+    const savedAllowJuxtaposition = this.allowJuxtaposition;
+    this.allowJuxtaposition = false;
+    const body = this.expression();
+    this.allowJuxtaposition = savedAllowJuxtaposition;
+
+    return {
+      type: "Lambda",
+      params,
+      body,
+      line: startToken.line,
+      column: startToken.column,
+    };
+  }
+
   private primary(): Expr {
     // Literals
     if (this.match(TokenType.NUMBER)) {
@@ -788,6 +877,21 @@ export class Parser {
         line: token.line,
         column: token.column,
       };
+    }
+
+    if (this.match(TokenType.NULL)) {
+      const token = this.previous();
+      return {
+        type: "Literal",
+        value: null,
+        line: token.line,
+        column: token.column,
+      };
+    }
+
+    // Lambda expression: |x| x * 2, |a, b| a + b, || 42
+    if (this.match(TokenType.PIPE)) {
+      return this.lambdaExpression();
     }
 
     // Color literal

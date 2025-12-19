@@ -751,4 +751,214 @@ describe("Interpreter", () => {
       expect(result).toEqual(Num(55));
     });
   });
+
+  describe("optional chaining", () => {
+    it("returns value for existing property with ?.", () => {
+      const result = runSlate(dedent(`
+        let obj = {x: 42}
+        obj?.x
+      `));
+      expect(result).toEqual(Num(42));
+    });
+
+    it("returns null for missing property with ?.", () => {
+      const result = runSlate(dedent(`
+        let obj = {x: 42}
+        obj?.y
+      `));
+      expect(result.type).toBe("null");
+    });
+
+    it("returns null when object is null with ?.", () => {
+      const result = runSlate(dedent(`
+        let obj = null
+        obj?.x
+      `));
+      expect(result.type).toBe("null");
+    });
+
+    it("chains optional member access", () => {
+      const result = runSlate(dedent(`
+        let obj = {nested: {value: 123}}
+        obj?.nested?.value
+      `));
+      expect(result).toEqual(Num(123));
+    });
+
+    it("short-circuits on null in chain", () => {
+      const result = runSlate(dedent(`
+        let obj = {nested: null}
+        obj?.nested?.value
+      `));
+      expect(result.type).toBe("null");
+    });
+
+    it("returns value for existing index with ?[]", () => {
+      const result = runSlate(dedent(`
+        let arr = [1, 2, 3]
+        arr?[1]
+      `));
+      expect(result).toEqual(Num(2));
+    });
+
+    it("returns null for out of bounds with ?[]", () => {
+      const result = runSlate(dedent(`
+        let arr = [1, 2, 3]
+        arr?[10]
+      `));
+      expect(result.type).toBe("null");
+    });
+
+    it("returns null when list is null with ?[]", () => {
+      const result = runSlate(dedent(`
+        let arr = null
+        arr?[0]
+      `));
+      expect(result.type).toBe("null");
+    });
+
+    it("calls function with ?()", () => {
+      // Test via stdlib which has the map function
+      const result = runSlate(dedent(`
+        fn add_one x:
+            x + 1
+        add_one?(5)
+      `));
+      expect(result).toEqual(Num(6));
+    });
+
+    it("returns null when function is null with ?()", () => {
+      const result = runSlate(dedent(`
+        let f = null
+        f?()
+      `));
+      expect(result.type).toBe("null");
+    });
+
+    it("combines optional chaining with null coalescing", () => {
+      const result = runSlate(dedent(`
+        let obj = {x: null}
+        obj?.x ?? "default"
+      `));
+      expect(result).toEqual(Str("default"));
+    });
+
+    it("mixes optional and regular access", () => {
+      const result = runSlate(dedent(`
+        let obj = {a: {b: {c: 42}}}
+        obj?.a.b.c
+      `));
+      expect(result).toEqual(Num(42));
+    });
+  });
+
+  describe("lambda expressions", () => {
+    it("evaluates simple lambda with one parameter", () => {
+      const result = runSlate(dedent(`
+        let double = |x| x * 2
+        double(5)
+      `));
+      expect(result).toEqual(Num(10));
+    });
+
+    it("evaluates lambda with multiple parameters", () => {
+      const result = runSlate(dedent(`
+        let add = |a, b| a + b
+        add(3, 4)
+      `));
+      expect(result).toEqual(Num(7));
+    });
+
+    it("evaluates lambda with no parameters", () => {
+      const result = runSlate(dedent(`
+        let greet = || "hello"
+        greet()
+      `));
+      expect(result).toEqual(Str("hello"));
+    });
+
+    it("captures variables from enclosing scope", () => {
+      const result = runSlate(dedent(`
+        let x = 10
+        let add_x = |y| x + y
+        add_x(5)
+      `));
+      expect(result).toEqual(Num(15));
+    });
+
+    it("can be passed as argument to higher-order function", () => {
+      const result = runSlate(dedent(`
+        fn apply f x:
+            f(x)
+        apply(|n| n * 3, 7)
+      `));
+      expect(result).toEqual(Num(21));
+    });
+
+    it("can be immediately invoked", () => {
+      const result = runSlate("(|x| x + 1)(10)");
+      expect(result).toEqual(Num(11));
+    });
+
+    it("works with map-like function", () => {
+      // Define map in Slate since stdlib native functions can't call lambdas
+      const result = runSlate(dedent(`
+        fn map_list lst f:
+          var result = []
+          for x in lst:
+            result = push(result, f(x))
+          result
+        let nums = [1, 2, 3]
+        map_list(nums, |x| x * 2)
+      `));
+      expect(result.type).toBe("list");
+      const elements = (result as any).elements;
+      expect(elements[0]).toEqual(Num(2));
+      expect(elements[1]).toEqual(Num(4));
+      expect(elements[2]).toEqual(Num(6));
+    });
+
+    it("works with filter-like function", () => {
+      // Define filter in Slate since stdlib native functions can't call lambdas
+      const result = runSlate(dedent(`
+        fn filter_list lst pred:
+          var result = []
+          for x in lst:
+            if pred(x):
+              result = push(result, x)
+          result
+        let nums = [1, 2, 3, 4, 5]
+        filter_list(nums, |x| x > 2)
+      `));
+      expect(result.type).toBe("list");
+      const elements = (result as any).elements;
+      expect(elements.length).toBe(3);
+      expect(elements[0]).toEqual(Num(3));
+    });
+
+    it("can return another lambda", () => {
+      const result = runSlate(dedent(`
+        let make_adder = |n| |x| x + n
+        let add5 = make_adder(5)
+        add5(10)
+      `));
+      expect(result).toEqual(Num(15));
+    });
+
+    it("works with string expressions", () => {
+      const result = runSlate(dedent(`
+        let greet = |name| "Hello, " + name + "!"
+        greet("World")
+      `));
+      expect(result).toEqual(Str("Hello, World!"));
+    });
+
+    it("supports complex expressions in body", () => {
+      const result = runSlate(dedent(`
+        let compute = |a, b, c| (a + b) * c
+        compute(2, 3, 4)
+      `));
+      expect(result).toEqual(Num(20));
+    });
+  });
 });

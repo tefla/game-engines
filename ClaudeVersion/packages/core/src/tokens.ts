@@ -22,6 +22,7 @@ export enum TokenType {
   // Additional keywords
   TRUE = "TRUE",
   FALSE = "FALSE",
+  NULL = "NULL",
   NOT = "NOT",
   AND = "AND",
   OR = "OR",
@@ -63,6 +64,9 @@ export enum TokenType {
   UNDERSCORE = "UNDERSCORE",
   HASH = "HASH",
   QUESTION_QUESTION = "QUESTION_QUESTION", // ??
+  QUESTION_DOT = "QUESTION_DOT",           // ?.
+  QUESTION_BRACKET = "QUESTION_BRACKET",   // ?[
+  QUESTION_PAREN = "QUESTION_PAREN",       // ?(
 
   // Brackets
   LEFT_PAREN = "LEFT_PAREN",
@@ -102,6 +106,7 @@ export const KEYWORDS: Record<string, TokenType> = {
   "extend": TokenType.EXTEND,
   "true": TokenType.TRUE,
   "false": TokenType.FALSE,
+  "null": TokenType.NULL,
   "not": TokenType.NOT,
   "and": TokenType.AND,
   "or": TokenType.OR,

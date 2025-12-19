@@ -124,6 +124,30 @@ export interface InterpolatedStringExpr extends ASTNode {
   parts: Array<{ kind: "literal"; value: string } | { kind: "expr"; expr: Expr }>;
 }
 
+export interface OptionalMemberExpr extends ASTNode {
+  type: "OptionalMember";
+  object: Expr;
+  property: string;
+}
+
+export interface OptionalIndexExpr extends ASTNode {
+  type: "OptionalIndex";
+  object: Expr;
+  index: Expr;
+}
+
+export interface OptionalCallExpr extends ASTNode {
+  type: "OptionalCall";
+  callee: Expr;
+  args: Expr[];
+}
+
+export interface LambdaExpr extends ASTNode {
+  type: "Lambda";
+  params: Array<{ name: string; typeAnnotation?: TypeExpr }>;
+  body: Expr;
+}
+
 // Union of all expression types
 export type Expr =
   | LiteralExpr
@@ -143,7 +167,11 @@ export type Expr =
   | AssignExpr
   | ColorExpr
   | NullCoalesceExpr
-  | InterpolatedStringExpr;
+  | InterpolatedStringExpr
+  | OptionalMemberExpr
+  | OptionalIndexExpr
+  | OptionalCallExpr
+  | LambdaExpr;
 
 // ============ Patterns ============
 

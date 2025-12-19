@@ -177,6 +177,12 @@ export class Lexer {
       case "?":
         if (this.match("?")) {
           this.addToken(TokenType.QUESTION_QUESTION);
+        } else if (this.match(".")) {
+          this.addToken(TokenType.QUESTION_DOT);
+        } else if (this.match("[")) {
+          this.addToken(TokenType.QUESTION_BRACKET);
+        } else if (this.match("(")) {
+          this.addToken(TokenType.QUESTION_PAREN);
         } else {
           this.error("Unexpected character '?'");
         }

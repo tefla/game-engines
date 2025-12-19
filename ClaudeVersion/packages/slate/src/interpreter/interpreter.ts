@@ -341,6 +341,14 @@ export class Interpreter {
         return this.evaluateRange(expr);
       case "InterpolatedString":
         return this.evaluateInterpolatedString(expr);
+      case "OptionalMember":
+        return this.evaluateOptionalMember(expr);
+      case "OptionalIndex":
+        return this.evaluateOptionalIndex(expr);
+      case "OptionalCall":
+        return this.evaluateOptionalCall(expr);
+      case "Lambda":
+        return this.evaluateLambda(expr);
       default:
         throw new RuntimeError(`Unknown expression type: ${(expr as any).type}`);
     }
@@ -532,6 +540,115 @@ export class Interpreter {
     }
 
     throw new RuntimeError(`Cannot index ${object.type} with ${index.type}`);
+  }
+
+  private evaluateOptionalMember(expr: {
+    object: Expr;
+    property: string;
+  }): SlateValue {
+    const object = this.evaluate(expr.object);
+
+    // Short-circuit to null if object is null
+    if (object.type === "null") {
+      return Null();
+    }
+
+    if (isRecord(object)) {
+      const value = object.fields.get(expr.property);
+      // Return null for missing properties instead of throwing
+      return value ?? Null();
+    }
+
+    // For non-records, also return null (optional chaining is lenient)
+    return Null();
+  }
+
+  private evaluateOptionalIndex(expr: { object: Expr; index: Expr }): SlateValue {
+    const object = this.evaluate(expr.object);
+
+    // Short-circuit to null if object is null
+    if (object.type === "null") {
+      return Null();
+    }
+
+    const index = this.evaluate(expr.index);
+
+    if (isList(object) && isNumber(index)) {
+      const i = Math.floor(index.value);
+      // Return null for out of bounds instead of throwing
+      if (i < 0 || i >= object.elements.length) {
+        return Null();
+      }
+      return object.elements[i];
+    }
+
+    if (isRecord(object) && isString(index)) {
+      const value = object.fields.get(index.value);
+      // Return null for missing properties instead of throwing
+      return value ?? Null();
+    }
+
+    // For incompatible types, return null
+    return Null();
+  }
+
+  private evaluateOptionalCall(expr: {
+    callee: Expr;
+    args: Expr[];
+  }): SlateValue {
+    const callee = this.evaluate(expr.callee);
+
+    // Short-circuit to null if callee is null
+    if (callee.type === "null") {
+      return Null();
+    }
+
+    // If it's callable, proceed with the call
+    if (isCallable(callee)) {
+      const args = expr.args.map((a) => this.evaluate(a));
+
+      if (callee.type === "native_function") {
+        return callee.fn(args, this);
+      }
+
+      if (callee.type === "function") {
+        const env = callee.closure.child();
+        for (let i = 0; i < callee.params.length; i++) {
+          env.define(callee.params[i].name, args[i] ?? Null());
+        }
+        return this.executeBlock(callee.body, env);
+      }
+    }
+
+    // For non-callable, return null
+    return Null();
+  }
+
+  private evaluateLambda(expr: {
+    params: Array<{ name: string }>;
+    body: Expr;
+  }): SlateValue {
+    // Create a function value that captures the current environment
+    return {
+      type: "function",
+      name: "<lambda>",
+      params: expr.params,
+      // Wrap the expression in a block that returns it
+      body: {
+        type: "Block",
+        statements: [
+          {
+            type: "ExprStmt",
+            expression: expr.body,
+            line: expr.body.line,
+            column: expr.body.column,
+          },
+        ],
+        line: expr.body.line,
+        column: expr.body.column,
+      },
+      closure: this.currentEnv,
+    } as SlateFunction;
   }
 
   private evaluateRecord(expr: {
