@@ -50,6 +50,11 @@ async function createMainWindow(): Promise<BrowserWindow> {
     show: false, // Show when ready
   });
 
+  // Attach listener BEFORE loading content so we don't miss the event
+  mainWindow.once("ready-to-show", () => {
+    mainWindow.show();
+  });
+
   // Load the app
   if (isDev) {
     // Retry loading dev server with backoff
@@ -76,11 +81,6 @@ async function createMainWindow(): Promise<BrowserWindow> {
     // Production or test mode - load built files
     await mainWindow.loadFile(path.join(__dirname, "../../renderer/index.html"));
   }
-
-  // Show window when ready
-  mainWindow.once("ready-to-show", () => {
-    mainWindow.show();
-  });
 
   return mainWindow;
 }
