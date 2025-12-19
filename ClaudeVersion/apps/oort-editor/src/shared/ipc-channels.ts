@@ -10,11 +10,17 @@ export const IPC = {
 
   // File operations
   FILE_READ: "file:read",
+  FILE_READ_BINARY: "file:read-binary",
   FILE_WRITE: "file:write",
+  FILE_CREATE: "file:create",
   FILE_DELETE: "file:delete",
   FILE_RENAME: "file:rename",
   FILE_LIST: "file:list",
+  FILE_MKDIR: "file:mkdir",
+  FILE_EXISTS: "file:exists",
   FILE_EXTERNAL_CHANGE: "file:external-change",
+  FILE_WATCH_START: "file:watch-start",
+  FILE_WATCH_STOP: "file:watch-stop",
 
   // Dialog operations
   DIALOG_OPEN_FILE: "dialog:open-file",

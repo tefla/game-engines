@@ -2,13 +2,33 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import * as path from "path";
 import { setupIpcHandlers } from "./ipc-handlers";
 import { WindowManager } from "./window-manager";
+import { fileWatcher } from "./file-watcher";
+import { extensionLoader } from "./extension-loader";
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling
-if (require("electron-squirrel-startup")) {
-  app.quit();
+try {
+  if (require("electron-squirrel-startup")) {
+    app.quit();
+  }
+} catch {
+  // electron-squirrel-startup not available (dev mode or non-Windows)
 }
 
-const isDev = process.env.NODE_ENV === "development" || !app.isPackaged;
+const isDev = process.env.NODE_ENV === "development";
+const isTest = process.env.NODE_ENV === "test";
+
+// Hot reload main process in development
+if (isDev) {
+  try {
+    require("electron-reload")(__dirname, {
+      electron: path.join(__dirname, "../../node_modules/.bin/electron"),
+      forceHardReset: true,
+      hardResetMethod: "exit",
+    });
+  } catch (e) {
+    console.log("electron-reload not available");
+  }
+}
 
 let windowManager: WindowManager;
 
@@ -32,10 +52,29 @@ async function createMainWindow(): Promise<BrowserWindow> {
 
   // Load the app
   if (isDev) {
-    await mainWindow.loadURL("http://localhost:5173");
+    // Retry loading dev server with backoff
+    const devUrl = "http://localhost:5173";
+    let retries = 5;
+    while (retries > 0) {
+      try {
+        await mainWindow.loadURL(devUrl);
+        break;
+      } catch (err) {
+        retries--;
+        if (retries === 0) {
+          console.error("Failed to connect to dev server after retries:", err);
+          // Fall back to built files if dev server isn't available
+          await mainWindow.loadFile(path.join(__dirname, "../../renderer/index.html"));
+          break;
+        }
+        console.log(`Dev server not ready, retrying... (${retries} left)`);
+        await new Promise(resolve => setTimeout(resolve, 1000));
+      }
+    }
     mainWindow.webContents.openDevTools();
   } else {
-    await mainWindow.loadFile(path.join(__dirname, "../renderer/index.html"));
+    // Production or test mode - load built files
+    await mainWindow.loadFile(path.join(__dirname, "../../renderer/index.html"));
   }
 
   // Show window when ready
@@ -49,6 +88,9 @@ async function createMainWindow(): Promise<BrowserWindow> {
 app.whenReady().then(async () => {
   // Set up IPC handlers
   setupIpcHandlers();
+
+  // Discover extensions
+  await extensionLoader.discoverExtensions();
 
   // Create window manager
   windowManager = new WindowManager();

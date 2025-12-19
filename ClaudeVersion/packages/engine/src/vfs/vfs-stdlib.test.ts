@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "vitest";
 import { VirtualFileSystem, createVfsStdlib } from "./";
 import { type SlateNativeFunction, Str, Num, Bool, isList, isString, isRecord, isBool, isNull } from "@oort/core";
 

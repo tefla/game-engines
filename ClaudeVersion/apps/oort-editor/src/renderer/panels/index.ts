@@ -6,6 +6,10 @@ import { ProjectExplorer } from "./ProjectExplorer";
 import { CodeEditor } from "./CodeEditor";
 import { ConsolePanel } from "./ConsolePanel";
 import { InspectorPanel } from "./InspectorPanel";
+import { AssetBrowser } from "./AssetBrowser";
+import { SceneViewport } from "./SceneViewport";
+import { SceneViewport3D } from "./SceneViewport3D";
+import { GameStatsPanel } from "./GameStatsPanel";
 
 // Register all builtin panels
 export function registerBuiltinPanels(): void {
@@ -45,6 +49,43 @@ export function registerBuiltinPanels(): void {
     defaultLocation: "right",
     singleton: true,
   });
+
+  panelRegistry.register({
+    id: "asset-browser",
+    title: "Assets",
+    icon: "📦",
+    component: AssetBrowser,
+    defaultLocation: "bottom",
+    singleton: true,
+  });
+
+  panelRegistry.register({
+    id: "scene-viewport",
+    title: "Scene 2D",
+    icon: "🎮",
+    component: SceneViewport,
+    defaultLocation: "center",
+    singleton: false,
+  });
+
+  panelRegistry.register({
+    id: "scene-viewport-3d",
+    title: "Scene 3D",
+    icon: "🎲",
+    component: SceneViewport3D,
+    defaultLocation: "center",
+    singleton: false,
+  });
+
+  // Extension-contributed panel (oort.game-stats)
+  panelRegistry.register({
+    id: "game-stats",
+    title: "Game Stats",
+    icon: "📊",
+    component: GameStatsPanel,
+    defaultLocation: "bottom",
+    singleton: true,
+  });
 }
 
 // Re-export panels
@@ -52,4 +93,8 @@ export { ProjectExplorer } from "./ProjectExplorer";
 export { CodeEditor } from "./CodeEditor";
 export { ConsolePanel } from "./ConsolePanel";
 export { InspectorPanel } from "./InspectorPanel";
+export { AssetBrowser } from "./AssetBrowser";
+export { SceneViewport } from "./SceneViewport";
+export { SceneViewport3D } from "./SceneViewport3D";
 export { WelcomePanel } from "./WelcomePanel";
+export { GameStatsPanel } from "./GameStatsPanel";

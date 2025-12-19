@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "vitest";
 import { Runtime } from "./runtime";
 import { Str, Num, Null, Bool, isList, isString, isNumber } from "@oort/core";
 import { VirtualFileSystem } from "../vfs";

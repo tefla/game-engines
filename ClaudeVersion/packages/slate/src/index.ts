@@ -22,6 +22,8 @@ export {
 
   // Values
   type SlateValue,
+  type SlateNativeFunction,
+  type SlateFunction,
   Num,
   Str,
   Bool,

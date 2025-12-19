@@ -1,0 +1,46 @@
+{
+  "name": "@oort/ext-game-stats",
+  "version": "1.0.0",
+  "description": "Game statistics and performance monitoring panel for Oort Editor",
+  "author": "Oort Team",
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "oort": {
+    "id": "oort.game-stats",
+    "name": "Game Stats",
+    "type": "extension",
+    "main": "./dist/index.js",
+    "activationEvents": ["onStartup"],
+    "contributes": {
+      "panels": [
+        {
+          "id": "game-stats",
+          "title": "Game Stats",
+          "icon": "activity",
+          "defaultLocation": "bottom",
+          "singleton": true,
+          "category": "Debug"
+        }
+      ],
+      "commands": [
+        {
+          "id": "gameStats.show",
+          "title": "Show Game Stats",
+          "category": "Debug"
+        },
+        {
+          "id": "gameStats.reset",
+          "title": "Reset Statistics",
+          "category": "Debug"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "typescript": "^5.3.0"
+  }
+}

@@ -13,6 +13,7 @@
   /* Surface colors */
   --surface: #313244;
   --surface-hover: #45475a;
+  --surface-raised: #45475a;
 
   /* Panel colors */
   --panel-bg: #1e1e2e;
@@ -80,6 +81,7 @@
 
   --surface: #ccd0da;
   --surface-hover: #bcc0cc;
+  --surface-raised: #dce0e8;
 
   --panel-bg: #eff1f5;
   --panel-header-bg: #e6e9ef;

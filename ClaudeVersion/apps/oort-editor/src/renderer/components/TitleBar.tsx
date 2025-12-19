@@ -1,5 +1,6 @@
 import React from "react";
 import { useProject } from "@/hooks/useStore";
+import { MenuBar } from "./MenuBar";
 import "./TitleBar.css";
 
 export function TitleBar() {
@@ -15,11 +16,14 @@ export function TitleBar() {
       {/* macOS: Leave space for traffic lights */}
       {isMac && <div className="traffic-light-space" />}
 
+      {/* Menu bar */}
+      <div className="menu-bar-container no-drag">
+        <MenuBar />
+      </div>
+
       {/* Title */}
       <div className="title-bar-title drag-region">
-        <span className="title-text">
-          {isOpen ? name : "Oort Editor"}
-        </span>
+        <span className="title-text">{isOpen ? name : "Oort Editor"}</span>
       </div>
 
       {/* Windows: Window controls */}

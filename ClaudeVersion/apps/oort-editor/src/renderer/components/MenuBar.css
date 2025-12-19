@@ -1,0 +1,126 @@
+/* Menu Bar Styles */
+
+.menu-bar {
+  display: flex;
+  align-items: stretch;
+  height: 100%;
+  gap: 2px;
+}
+
+.menu-bar-item {
+  position: relative;
+}
+
+.menu-bar-button {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  padding: 0 10px;
+  height: 100%;
+  font-size: 13px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background var(--transition-fast);
+}
+
+.menu-bar-button:hover,
+.menu-bar-item.open .menu-bar-button {
+  background: var(--hover);
+}
+
+.menu-bar-item.open .menu-bar-button {
+  background: var(--surface);
+}
+
+/* Dropdown Menu */
+.menu-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  min-width: 220px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  z-index: 1000;
+  animation: menuDropdownIn 0.1s ease-out;
+}
+
+@keyframes menuDropdownIn {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Menu Item */
+.menu-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 6px 10px;
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  cursor: pointer;
+  border-radius: 4px;
+  gap: 16px;
+  position: relative;
+}
+
+.menu-item:hover:not(.disabled) {
+  background: var(--hover);
+}
+
+.menu-item.disabled {
+  color: var(--text-subtle);
+  cursor: default;
+}
+
+.menu-item-label {
+  flex: 1;
+}
+
+.menu-item-shortcut {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+}
+
+.menu-item-arrow {
+  font-size: 9px;
+  color: var(--text-muted);
+}
+
+/* Separator */
+.menu-separator {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 8px;
+}
+
+/* Submenu */
+.menu-item.submenu {
+  cursor: default;
+}
+
+.menu-submenu {
+  position: absolute;
+  left: 100%;
+  top: -4px;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  box-shadow: var(--shadow-lg);
+  animation: menuDropdownIn 0.1s ease-out;
+}

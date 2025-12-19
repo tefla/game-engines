@@ -2,6 +2,7 @@
   display: flex;
   flex-direction: column;
   height: 100%;
+  background: var(--bg);
 }
 
 .code-editor.empty {
@@ -11,9 +12,24 @@
   text-align: center;
 }
 
-.code-editor.empty .hint {
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.empty-icon {
+  font-size: 48px;
+  opacity: 0.5;
+}
+
+.empty-state p {
+  margin: 0;
+}
+
+.empty-state .hint {
   font-size: 12px;
-  margin-top: 4px;
   color: var(--text-subtle);
 }
 
@@ -66,23 +82,25 @@
 .editor-content {
   flex: 1;
   overflow: hidden;
+  position: relative;
 }
 
-.code-textarea {
+.editor-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  color: var(--text-muted);
+  font-size: 13px;
+}
+
+/* Monaco editor container needs full dimensions */
+.monaco-container {
   width: 100%;
   height: 100%;
-  padding: 12px;
-  border: none;
-  background: var(--bg);
-  color: var(--text);
-  font-family: var(--font-mono);
-  font-size: 13px;
-  line-height: 1.6;
-  resize: none;
-  outline: none;
-  tab-size: 2;
 }
 
-.code-textarea::placeholder {
-  color: var(--text-subtle);
+.monaco-container .monaco-editor {
+  width: 100% !important;
+  height: 100% !important;
 }

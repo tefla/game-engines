@@ -1,7 +1,8 @@
 .project-explorer {
   height: 100%;
-  overflow: auto;
-  padding: 4px 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
 }
 
 .project-explorer.empty {
@@ -9,6 +10,39 @@
   align-items: center;
   justify-content: center;
   color: var(--text-muted);
+}
+
+/* Toolbar */
+.explorer-toolbar {
+  display: flex;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.toolbar-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.toolbar-btn:hover {
+  background: var(--hover);
+}
+
+/* Tree */
+.explorer-tree {
+  flex: 1;
+  overflow: auto;
+  padding: 4px 0;
 }
 
 .tree-item {
@@ -46,3 +80,24 @@
 .tree-children {
   /* Children container */
 }
+
+/* Input field for new file/folder/rename */
+.tree-input {
+  flex: 1;
+  border: 1px solid var(--accent);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 12px;
+  padding: 2px 6px;
+  border-radius: 3px;
+  outline: none;
+}
+
+.tree-input:focus {
+  box-shadow: 0 0 0 2px rgba(var(--accent-rgb), 0.3);
+}
+
+.tree-input-item {
+  background: var(--surface);
+}
+

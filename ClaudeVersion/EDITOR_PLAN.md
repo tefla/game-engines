@@ -967,27 +967,27 @@ class ThemeManager {
 
 ## Implementation Order
 
-### Sprint 1: Foundation (Phase 1)
-- [ ] Electron app shell with main/renderer
-- [ ] Basic window with React
-- [ ] Message bus implementation
-- [ ] State store implementation
-- [ ] Simple panel container (no docking yet)
-- [ ] Dark theme CSS foundation
+### Sprint 1: Foundation (Phase 1) - COMPLETE
+- [x] Electron app shell with main/renderer
+- [x] Basic window with React
+- [x] Message bus implementation
+- [x] State store implementation
+- [x] Simple panel container (no docking yet)
+- [x] Dark theme CSS foundation
 
-### Sprint 2: Core Panels (Phase 2)
-- [ ] Monaco editor integration
-- [ ] Slate language mode for Monaco
-- [ ] Project explorer (tree view)
-- [ ] Console panel with REPL
-- [ ] Basic inspector (read-only)
+### Sprint 2: Core Panels (Phase 2) - COMPLETE
+- [x] Monaco editor integration
+- [x] Slate language mode for Monaco (with autocomplete & snippets)
+- [x] Project explorer (tree view)
+- [x] Console panel with Slate REPL (fully wired up)
+- [x] Basic inspector (read-only)
 
-### Sprint 3: Docking & Layout (Phase 1 cont.)
-- [ ] Full docking system
-- [ ] Layout serialization
-- [ ] Panel drag-and-drop
-- [ ] Tab support
-- [ ] Layout presets
+### Sprint 3: Docking & Layout (Phase 1 cont.) - COMPLETE
+- [x] Full docking system
+- [x] Layout serialization (auto-save/restore)
+- [x] Panel drag-and-drop (with drop zone visual feedback)
+- [x] Tab support (with drag reordering)
+- [x] Layout presets (Default, Editor Focus, Debugging, Wide)
 
 ### Sprint 4: Project Management (Phase 3)
 - [ ] Project create/open/save

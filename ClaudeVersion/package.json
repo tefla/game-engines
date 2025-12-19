@@ -8,9 +8,12 @@
     "apps/*"
   ],
   "scripts": {
-    "test": "bun test",
+    "test": "bun run --filter '@oort/engine' test",
+    "test:engine": "bun run --filter '@oort/engine' test",
+    "test:e2e": "bun run --filter '@oort/editor-app' test:e2e",
     "build": "bun run --filter '*' build",
-    "dev": "bun run --filter puzzle-demo dev"
+    "dev": "bun run --filter puzzle-demo dev",
+    "editor": "npm run dev --workspace @oort/editor-app"
   },
   "devDependencies": {
     "@types/bun": "latest",

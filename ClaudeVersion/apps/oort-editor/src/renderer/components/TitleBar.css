@@ -9,7 +9,7 @@
 }
 
 .title-bar.mac {
-  justify-content: center;
+  justify-content: flex-start;
 }
 
 .title-bar.windows {
@@ -20,6 +20,12 @@
 .traffic-light-space {
   width: 70px;
   flex-shrink: 0;
+}
+
+/* Menu bar container */
+.menu-bar-container {
+  display: flex;
+  height: 100%;
 }
 
 /* Title */
@@ -62,4 +68,13 @@
 .window-close:hover {
   background: var(--error);
   color: white;
+}
+
+/* Drag region helpers */
+.drag-region {
+  -webkit-app-region: drag;
+}
+
+.no-drag {
+  -webkit-app-region: no-drag;
 }

@@ -5,12 +5,17 @@ import { IPC } from "../shared/ipc-channels";
 contextBridge.exposeInMainWorld("electronAPI", {
   // File operations
   readFile: (path: string) => ipcRenderer.invoke(IPC.FILE_READ, path),
+  readBinaryFile: (path: string) => ipcRenderer.invoke(IPC.FILE_READ_BINARY, path),
   writeFile: (path: string, content: string) =>
     ipcRenderer.invoke(IPC.FILE_WRITE, path, content),
+  createFile: (path: string, content?: string) =>
+    ipcRenderer.invoke(IPC.FILE_CREATE, path, content || ""),
   deleteFile: (path: string) => ipcRenderer.invoke(IPC.FILE_DELETE, path),
   renameFile: (oldPath: string, newPath: string) =>
     ipcRenderer.invoke(IPC.FILE_RENAME, oldPath, newPath),
   listFiles: (path: string) => ipcRenderer.invoke(IPC.FILE_LIST, path),
+  mkdir: (path: string) => ipcRenderer.invoke(IPC.FILE_MKDIR, path),
+  fileExists: (path: string) => ipcRenderer.invoke(IPC.FILE_EXISTS, path),
 
   // Dialog operations
   openFileDialog: (options?: any) =>
@@ -37,11 +42,28 @@ contextBridge.exposeInMainWorld("electronAPI", {
   getVersion: () => ipcRenderer.invoke(IPC.APP_GET_VERSION),
   getPath: (name: string) => ipcRenderer.invoke(IPC.APP_GET_PATH, name),
 
+  // Extension operations
+  getExtensions: () => ipcRenderer.invoke("extensions:getAll"),
+  getExtension: (id: string) => ipcRenderer.invoke("extensions:get", id),
+  activateExtension: (id: string) => ipcRenderer.invoke("extensions:activate", id),
+  deactivateExtension: (id: string) => ipcRenderer.invoke("extensions:deactivate", id),
+  reloadExtensions: () => ipcRenderer.invoke("extensions:reload"),
+
+  // Recent projects
+  getRecentProjects: () => ipcRenderer.invoke("settings:getRecentProjects"),
+  addRecentProject: (path: string, name: string) =>
+    ipcRenderer.invoke("settings:addRecentProject", path, name),
+  removeRecentProject: (path: string) =>
+    ipcRenderer.invoke("settings:removeRecentProject", path),
+  clearRecentProjects: () => ipcRenderer.invoke("settings:clearRecentProjects"),
+
   // Event listeners
   on: (channel: string, callback: (...args: any[]) => void) => {
     const validChannels = [
       IPC.PROJECT_OPENED,
       IPC.FILE_EXTERNAL_CHANGE,
+      "extension:activated",
+      "extension:deactivated",
     ];
     if (validChannels.includes(channel as any)) {
       const subscription = (_event: any, ...args: any[]) => callback(...args);
@@ -57,13 +79,49 @@ contextBridge.exposeInMainWorld("electronAPI", {
   },
 });
 
+// Extension info type
+export interface ExtensionInfo {
+  id: string;
+  name: string;
+  version: string;
+  description?: string;
+  active: boolean;
+  contributes?: {
+    panels?: Array<{
+      id: string;
+      title: string;
+      icon: string;
+      defaultLocation?: "left" | "right" | "bottom" | "center";
+      singleton?: boolean;
+      category?: string;
+    }>;
+    commands?: Array<{
+      id: string;
+      title: string;
+      category?: string;
+      keybinding?: string;
+      when?: string;
+    }>;
+    assetTypes?: Array<{
+      extensions: string[];
+      name: string;
+      icon: string;
+      editorId?: string;
+    }>;
+  };
+}
+
 // Type declarations for renderer
 export interface ElectronAPI {
   readFile: (path: string) => Promise<{ success: boolean; data?: string; error?: string }>;
+  readBinaryFile: (path: string) => Promise<{ success: boolean; data?: number[]; error?: string }>;
   writeFile: (path: string, content: string) => Promise<{ success: boolean; error?: string }>;
+  createFile: (path: string, content?: string) => Promise<{ success: boolean; error?: string }>;
   deleteFile: (path: string) => Promise<{ success: boolean; error?: string }>;
   renameFile: (oldPath: string, newPath: string) => Promise<{ success: boolean; error?: string }>;
   listFiles: (path: string) => Promise<{ success: boolean; data?: any[]; error?: string }>;
+  mkdir: (path: string) => Promise<{ success: boolean; error?: string }>;
+  fileExists: (path: string) => Promise<{ success: boolean; data?: boolean; error?: string }>;
   openFileDialog: (options?: any) => Promise<Electron.OpenDialogReturnValue>;
   openFolderDialog: (options?: any) => Promise<Electron.OpenDialogReturnValue>;
   saveFileDialog: (options?: any) => Promise<Electron.SaveDialogReturnValue>;
@@ -76,8 +134,23 @@ export interface ElectronAPI {
   toggleDevTools: () => void;
   getVersion: () => Promise<string>;
   getPath: (name: string) => Promise<string>;
+  getExtensions: () => Promise<ExtensionInfo[]>;
+  getExtension: (id: string) => Promise<ExtensionInfo | null>;
+  activateExtension: (id: string) => Promise<boolean>;
+  deactivateExtension: (id: string) => Promise<boolean>;
+  reloadExtensions: () => Promise<ExtensionInfo[]>;
+  getRecentProjects: () => Promise<RecentProject[]>;
+  addRecentProject: (path: string, name: string) => Promise<RecentProject[]>;
+  removeRecentProject: (path: string) => Promise<RecentProject[]>;
+  clearRecentProjects: () => Promise<RecentProject[]>;
   on: (channel: string, callback: (...args: any[]) => void) => () => void;
   once: (channel: string, callback: (...args: any[]) => void) => void;
+}
+
+export interface RecentProject {
+  path: string;
+  name: string;
+  lastOpened: string;
 }
 
 declare global {

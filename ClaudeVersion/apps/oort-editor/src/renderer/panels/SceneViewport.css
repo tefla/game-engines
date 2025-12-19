@@ -1,0 +1,143 @@
+/* Scene Viewport Styles */
+
+.scene-viewport {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  position: relative;
+}
+
+.scene-viewport.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+
+/* Toolbar */
+.viewport-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: var(--bg-secondary);
+}
+
+.viewport-toolbar .toolbar-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.viewport-toolbar .toolbar-btn:hover {
+  background: var(--hover);
+}
+
+.viewport-toolbar .toolbar-btn.active {
+  background: var(--accent);
+  color: white;
+}
+
+.toolbar-separator {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  margin: 0 4px;
+}
+
+.toolbar-spacer {
+  flex: 1;
+}
+
+.zoom-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  font-family: var(--font-mono);
+  min-width: 40px;
+  text-align: right;
+}
+
+/* Canvas Container */
+.viewport-canvas {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+}
+
+.viewport-canvas canvas {
+  display: block;
+  cursor: crosshair;
+}
+
+.viewport-canvas canvas:active {
+  cursor: grabbing;
+}
+
+/* Entity List (mini overlay) */
+.entity-list {
+  position: absolute;
+  top: 44px;
+  right: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+  min-width: 120px;
+  box-shadow: var(--shadow-md);
+}
+
+.entity-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 8px;
+  font-size: 11px;
+  color: var(--text);
+  cursor: pointer;
+  border-radius: 4px;
+}
+
+.entity-item:hover {
+  background: var(--hover);
+}
+
+.entity-item.selected {
+  background: var(--selected);
+}
+
+.entity-color {
+  width: 10px;
+  height: 10px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+/* Playing indicator */
+.viewport-playing {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--success);
+  color: white;
+  padding: 4px 12px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}

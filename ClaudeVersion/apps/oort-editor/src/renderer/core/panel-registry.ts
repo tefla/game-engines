@@ -33,10 +33,12 @@ class PanelRegistry {
 
   /**
    * Register a new panel type
+   * Note: Silently skips if already registered (expected in React StrictMode)
    */
   register(definition: PanelDefinition): void {
+    // Skip if already registered with same component (React StrictMode re-runs effects)
     if (this.definitions.has(definition.id)) {
-      console.warn(`Panel ${definition.id} is already registered, overwriting`);
+      return;
     }
 
     this.definitions.set(definition.id, {
@@ -144,6 +146,14 @@ class PanelRegistry {
    */
   getAllInstances(): PanelInstance[] {
     return Array.from(this.instances.values());
+  }
+
+  /**
+   * Clear all panel instances (used when switching layouts)
+   */
+  clearInstances(): void {
+    this.instances.clear();
+    this.instanceCounter = 0;
   }
 
   /**

@@ -2,6 +2,7 @@ import { ipcMain, dialog, app, BrowserWindow } from "electron";
 import * as fs from "fs/promises";
 import * as path from "path";
 import { IPC } from "../shared/ipc-channels";
+import { fileWatcher } from "./file-watcher";
 
 export function setupIpcHandlers(): void {
   // File operations
@@ -9,6 +10,17 @@ export function setupIpcHandlers(): void {
     try {
       const content = await fs.readFile(filePath, "utf-8");
       return { success: true, data: content };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  // Binary file reading (for glTF/GLB models, images, etc.)
+  ipcMain.handle(IPC.FILE_READ_BINARY, async (_event, filePath: string) => {
+    try {
+      const buffer = await fs.readFile(filePath);
+      // Return as Uint8Array for transfer
+      return { success: true, data: Array.from(buffer) };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
@@ -58,6 +70,33 @@ export function setupIpcHandlers(): void {
       return { success: true, data: files };
     } catch (error: any) {
       return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle(IPC.FILE_CREATE, async (_event, filePath: string, content: string = "") => {
+    try {
+      await fs.writeFile(filePath, content, "utf-8");
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle(IPC.FILE_MKDIR, async (_event, dirPath: string) => {
+    try {
+      await fs.mkdir(dirPath, { recursive: true });
+      return { success: true };
+    } catch (error: any) {
+      return { success: false, error: error.message };
+    }
+  });
+
+  ipcMain.handle(IPC.FILE_EXISTS, async (_event, filePath: string) => {
+    try {
+      await fs.access(filePath);
+      return { success: true, data: true };
+    } catch {
+      return { success: true, data: false };
     }
   });
 
@@ -140,6 +179,13 @@ main()
         mainContent
       );
 
+      // Start file watcher for new project
+      const mainWindow = BrowserWindow.getFocusedWindow();
+      if (mainWindow) {
+        fileWatcher.setMainWindow(mainWindow);
+        fileWatcher.start(projectPath);
+      }
+
       return { success: true, data: { path: projectPath, config } };
     } catch (error: any) {
       return { success: false, error: error.message };
@@ -151,10 +197,38 @@ main()
       const configPath = path.join(projectPath, "project.json");
       const configContent = await fs.readFile(configPath, "utf-8");
       const config = JSON.parse(configContent);
+
+      // Start file watcher for opened project
+      const mainWindow = BrowserWindow.getFocusedWindow();
+      if (mainWindow) {
+        fileWatcher.setMainWindow(mainWindow);
+        fileWatcher.start(projectPath);
+      }
+
       return { success: true, data: { path: projectPath, config } };
     } catch (error: any) {
       return { success: false, error: error.message };
     }
+  });
+
+  ipcMain.handle(IPC.PROJECT_CLOSE, async () => {
+    fileWatcher.stop();
+    return { success: true };
+  });
+
+  // File watch control
+  ipcMain.handle(IPC.FILE_WATCH_START, async (_event, projectPath: string) => {
+    const mainWindow = BrowserWindow.getFocusedWindow();
+    if (mainWindow) {
+      fileWatcher.setMainWindow(mainWindow);
+      fileWatcher.start(projectPath);
+    }
+    return { success: true };
+  });
+
+  ipcMain.handle(IPC.FILE_WATCH_STOP, async () => {
+    fileWatcher.stop();
+    return { success: true };
   });
 
   // Window operations
@@ -186,5 +260,68 @@ main()
 
   ipcMain.handle(IPC.APP_GET_PATH, (_event, name: string) => {
     return app.getPath(name as any);
+  });
+
+  // Recent projects
+  const getSettingsPath = () => {
+    const userDataPath = app.getPath("userData");
+    return path.join(userDataPath, "settings.json");
+  };
+
+  const loadSettings = async () => {
+    try {
+      const settingsPath = getSettingsPath();
+      const content = await fs.readFile(settingsPath, "utf-8");
+      return JSON.parse(content);
+    } catch {
+      return { recentProjects: [] };
+    }
+  };
+
+  const saveSettings = async (settings: any) => {
+    const settingsPath = getSettingsPath();
+    await fs.writeFile(settingsPath, JSON.stringify(settings, null, 2));
+  };
+
+  ipcMain.handle("settings:getRecentProjects", async () => {
+    const settings = await loadSettings();
+    return settings.recentProjects || [];
+  });
+
+  ipcMain.handle("settings:addRecentProject", async (_event, projectPath: string, projectName: string) => {
+    const settings = await loadSettings();
+    const recentProjects = settings.recentProjects || [];
+
+    // Remove if already exists
+    const filtered = recentProjects.filter((p: any) => p.path !== projectPath);
+
+    // Add to front
+    filtered.unshift({
+      path: projectPath,
+      name: projectName,
+      lastOpened: new Date().toISOString(),
+    });
+
+    // Keep only last 10
+    settings.recentProjects = filtered.slice(0, 10);
+    await saveSettings(settings);
+
+    return settings.recentProjects;
+  });
+
+  ipcMain.handle("settings:removeRecentProject", async (_event, projectPath: string) => {
+    const settings = await loadSettings();
+    settings.recentProjects = (settings.recentProjects || []).filter(
+      (p: any) => p.path !== projectPath
+    );
+    await saveSettings(settings);
+    return settings.recentProjects;
+  });
+
+  ipcMain.handle("settings:clearRecentProjects", async () => {
+    const settings = await loadSettings();
+    settings.recentProjects = [];
+    await saveSettings(settings);
+    return [];
   });
 }

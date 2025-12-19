@@ -110,6 +110,36 @@ export const random = native("random", 0, () => {
   return Num(Math.random());
 });
 
+export const tan = native("tan", 1, ([x]) => {
+  return Num(Math.tan(assertNumber(x, "tan")));
+});
+
+export const asin = native("asin", 1, ([x]) => {
+  return Num(Math.asin(assertNumber(x, "asin")));
+});
+
+export const acos = native("acos", 1, ([x]) => {
+  return Num(Math.acos(assertNumber(x, "acos")));
+});
+
+export const atan = native("atan", 1, ([x]) => {
+  return Num(Math.atan(assertNumber(x, "atan")));
+});
+
+export const atan2 = native("atan2", 2, ([y, x]) => {
+  return Num(Math.atan2(assertNumber(y, "atan2"), assertNumber(x, "atan2")));
+});
+
+export const radians = native("radians", 1, ([deg]) => {
+  return Num(assertNumber(deg, "radians") * (Math.PI / 180));
+});
+
+export const degrees = native("degrees", 1, ([rad]) => {
+  return Num(assertNumber(rad, "degrees") * (180 / Math.PI));
+});
+
+export const PI = Num(Math.PI);
+
 // ============ Vector Functions ============
 
 export const vec3 = native("vec3", 3, ([x, y, z]) => {
@@ -182,6 +212,69 @@ export const length = native("length", 1, ([v]) => {
     return Num(Math.sqrt(x * x + y * y + z * z));
   }
   throw new RuntimeError("length expects a list, string, or vector");
+});
+
+export const cross = native("cross", 2, ([a, b]) => {
+  if (!isRecord(a) || !isRecord(b)) {
+    throw new RuntimeError("cross expects two vectors (records)");
+  }
+  const ax = assertNumber(a.fields.get("x") || Num(0), "cross");
+  const ay = assertNumber(a.fields.get("y") || Num(0), "cross");
+  const az = assertNumber(a.fields.get("z") || Num(0), "cross");
+  const bx = assertNumber(b.fields.get("x") || Num(0), "cross");
+  const by = assertNumber(b.fields.get("y") || Num(0), "cross");
+  const bz = assertNumber(b.fields.get("z") || Num(0), "cross");
+
+  const fields = new Map<string, SlateValue>();
+  fields.set("x", Num(ay * bz - az * by));
+  fields.set("y", Num(az * bx - ax * bz));
+  fields.set("z", Num(ax * by - ay * bx));
+  return Record(fields);
+});
+
+export const euler = native("euler", 3, ([x, y, z]) => {
+  const fields = new Map<string, SlateValue>();
+  fields.set("x", Num(assertNumber(x, "euler")));
+  fields.set("y", Num(assertNumber(y, "euler")));
+  fields.set("z", Num(assertNumber(z, "euler")));
+  fields.set("_type", Str("euler"));
+  return Record(fields);
+});
+
+export const quat = native("quat", 4, ([x, y, z, w]) => {
+  const fields = new Map<string, SlateValue>();
+  fields.set("x", Num(assertNumber(x, "quat")));
+  fields.set("y", Num(assertNumber(y, "quat")));
+  fields.set("z", Num(assertNumber(z, "quat")));
+  fields.set("w", Num(assertNumber(w, "quat")));
+  fields.set("_type", Str("quat"));
+  return Record(fields);
+});
+
+export const quatFromEuler = native("quatFromEuler", 1, ([e]) => {
+  if (!isRecord(e)) {
+    throw new RuntimeError("quatFromEuler expects an euler record");
+  }
+  // Convert degrees to radians for calculation
+  const xDeg = assertNumber(e.fields.get("x") || Num(0), "quatFromEuler");
+  const yDeg = assertNumber(e.fields.get("y") || Num(0), "quatFromEuler");
+  const zDeg = assertNumber(e.fields.get("z") || Num(0), "quatFromEuler");
+
+  const x = xDeg * (Math.PI / 180) / 2;
+  const y = yDeg * (Math.PI / 180) / 2;
+  const z = zDeg * (Math.PI / 180) / 2;
+
+  const cx = Math.cos(x), sx = Math.sin(x);
+  const cy = Math.cos(y), sy = Math.sin(y);
+  const cz = Math.cos(z), sz = Math.sin(z);
+
+  const fields = new Map<string, SlateValue>();
+  fields.set("x", Num(sx * cy * cz + cx * sy * sz));
+  fields.set("y", Num(cx * sy * cz - sx * cy * sz));
+  fields.set("z", Num(cx * cy * sz + sx * sy * cz));
+  fields.set("w", Num(cx * cy * cz - sx * sy * sz));
+  fields.set("_type", Str("quat"));
+  return Record(fields);
 });
 
 // ============ List Functions ============
@@ -413,6 +506,13 @@ export const stdlib: Map<string, SlateNativeFunction> = new Map([
   ["pow", pow],
   ["sin", sin],
   ["cos", cos],
+  ["tan", tan],
+  ["asin", asin],
+  ["acos", acos],
+  ["atan", atan],
+  ["atan2", atan2],
+  ["radians", radians],
+  ["degrees", degrees],
   ["random", random],
 
   // Vector
@@ -421,6 +521,10 @@ export const stdlib: Map<string, SlateNativeFunction> = new Map([
   ["normalize", normalize],
   ["distance", distance],
   ["length", length],
+  ["cross", cross],
+  ["euler", euler],
+  ["quat", quat],
+  ["quatFromEuler", quatFromEuler],
 
   // List
   ["push", push],

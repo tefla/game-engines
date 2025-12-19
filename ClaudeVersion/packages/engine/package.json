@@ -4,11 +4,16 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "scripts": {
-    "test": "bun test",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "build": "bun build ./src/index.ts --outdir ./dist"
   },
   "dependencies": {
     "@oort/core": "workspace:*",
     "@oort/slate": "workspace:*"
+  },
+  "devDependencies": {
+    "vitest": "^2.1.0"
   }
 }

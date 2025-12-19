@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "bun:test";
+import { describe, it, expect, beforeEach } from "vitest";
 import { SignalBus, GameSignals } from "./signal-bus";
 import { Str, Num, Null, Record, Bool } from "@oort/core";
 
