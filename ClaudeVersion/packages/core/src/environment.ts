@@ -1,6 +1,7 @@
 // Environment for variable scope management
 
-import type { SlateValue } from "./values";
+import type { SlateValue, SlateRecord } from "./values";
+import { Record } from "./values";
 
 export class Environment {
   private values: Map<string, SlateValue> = new Map();
@@ -75,6 +76,11 @@ export class Environment {
       return [...names, ...this.parent.allNames()];
     }
     return names;
+  }
+
+  // Get all bindings in this environment as a record (for module exports)
+  getAllBindings(): SlateRecord {
+    return Record(new Map(this.values));
   }
 }
 

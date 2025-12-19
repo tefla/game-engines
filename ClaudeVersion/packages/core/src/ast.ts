@@ -264,6 +264,8 @@ export interface ExprStmt extends ASTNode {
 export interface ImportStmt extends ASTNode {
   type: "Import";
   path: string;
+  alias?: string; // import math as m -> alias = "m"
+  names?: string[]; // from math import sin, cos -> names = ["sin", "cos"]
 }
 
 export interface LoopStmt extends ASTNode {

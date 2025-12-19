@@ -80,6 +80,7 @@ export class Parser {
       if (this.check(TokenType.ON)) return this.onStatement();
       if (this.check(TokenType.EMIT)) return this.emitStatement();
       if (this.check(TokenType.IMPORT)) return this.importStatement();
+      if (this.check(TokenType.FROM)) return this.fromImportStatement();
       if (this.check(TokenType.LOOP)) return this.loopStatement();
       if (this.check(TokenType.FOR)) return this.forStatement();
       if (this.check(TokenType.BREAK)) return this.breakStatement();
@@ -239,9 +240,48 @@ export class Parser {
       "Expected module path after 'import'"
     );
 
+    // Check for 'as' alias
+    let alias: string | undefined;
+    if (this.match(TokenType.AS)) {
+      const aliasToken = this.consume(
+        TokenType.IDENTIFIER,
+        "Expected alias name after 'as'"
+      );
+      alias = aliasToken.lexeme;
+    }
+
     return {
       type: "Import",
       path: path.lexeme,
+      alias,
+      line: keyword.line,
+      column: keyword.column,
+    };
+  }
+
+  private fromImportStatement(): ImportStmt {
+    const keyword = this.advance(); // consume 'from'
+    const path = this.consume(
+      TokenType.IDENTIFIER,
+      "Expected module path after 'from'"
+    );
+
+    this.consume(TokenType.IMPORT, "Expected 'import' after module path");
+
+    // Parse the names to import
+    const names: string[] = [];
+    do {
+      const name = this.consume(
+        TokenType.IDENTIFIER,
+        "Expected name to import"
+      );
+      names.push(name.lexeme);
+    } while (this.match(TokenType.COMMA));
+
+    return {
+      type: "Import",
+      path: path.lexeme,
+      names,
       line: keyword.line,
       column: keyword.column,
     };

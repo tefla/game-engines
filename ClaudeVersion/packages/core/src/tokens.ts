@@ -39,6 +39,8 @@ export enum TokenType {
   WAIT = "WAIT",
   TYPE = "TYPE",
   WITH = "WITH",
+  FROM = "FROM",
+  AS = "AS",
 
   // Operators
   PLUS = "PLUS",
@@ -123,4 +125,6 @@ export const KEYWORDS: Record<string, TokenType> = {
   "wait": TokenType.WAIT,
   "type": TokenType.TYPE,
   "with": TokenType.WITH,
+  "from": TokenType.FROM,
+  "as": TokenType.AS,
 };

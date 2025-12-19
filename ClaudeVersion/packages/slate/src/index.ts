@@ -3,8 +3,14 @@
 export { Lexer } from "./lexer";
 export { Parser } from "./parser";
 export { Interpreter } from "./interpreter";
-export type { SignalHandler } from "./interpreter";
+export type { SignalHandler, InterpreterOptions } from "./interpreter";
 export { stdlib } from "./stdlib";
+export {
+  ModuleLoader,
+  InMemoryModuleResolver,
+  type ModuleResolver,
+  type ModuleInterpreter,
+} from "./interpreter/module-loader";
 
 // Re-export core types
 export {

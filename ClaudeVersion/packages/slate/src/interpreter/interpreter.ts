@@ -31,6 +31,7 @@ import {
   type SlateRecord,
   type SlateList,
 } from "@oort/core";
+import type { ModuleLoader } from "./module-loader";
 
 // Control flow exceptions for break/continue
 class BreakException extends Error {
@@ -53,21 +54,36 @@ export type SignalHandler = {
   handler: (data: SlateValue) => void;
 };
 
+export interface InterpreterOptions {
+  globals?: Map<string, SlateValue>;
+  moduleLoader?: ModuleLoader;
+}
+
 export class Interpreter {
   private globalEnv: Environment;
   private currentEnv: Environment;
   private signalHandlers: SignalHandler[] = [];
   private output: string[] = [];
+  private moduleLoader?: ModuleLoader;
 
-  constructor(globals?: Map<string, SlateValue>) {
+  constructor(options?: InterpreterOptions | Map<string, SlateValue>) {
     this.globalEnv = new Environment();
     this.currentEnv = this.globalEnv;
 
-    // Register any provided globals
-    if (globals) {
-      for (const [name, value] of globals) {
+    // Handle both old-style (Map) and new-style (options object) constructor
+    if (options instanceof Map) {
+      // Legacy: globals passed directly
+      for (const [name, value] of options) {
         this.globalEnv.define(name, value);
       }
+    } else if (options) {
+      // New style: options object
+      if (options.globals) {
+        for (const [name, value] of options.globals) {
+          this.globalEnv.define(name, value);
+        }
+      }
+      this.moduleLoader = options.moduleLoader;
     }
   }
 
@@ -87,6 +103,14 @@ export class Interpreter {
 
   getSignalHandlers(): SignalHandler[] {
     return this.signalHandlers;
+  }
+
+  /**
+   * Get all bindings from the global environment as a record.
+   * Used by module loader to extract exports from a module.
+   */
+  getExports(): SlateRecord {
+    return this.globalEnv.getAllBindings();
   }
 
   emit(signalPath: string[], data: SlateValue = Null()): void {
@@ -199,9 +223,42 @@ export class Interpreter {
     return Null();
   }
 
-  private executeImport(stmt: { path: string }): SlateValue {
-    // Import handling will be implemented with VFS
-    // For now, just return null
+  private executeImport(stmt: {
+    path: string;
+    alias?: string;
+    names?: string[];
+  }): SlateValue {
+    // If no module loader is configured, imports are no-ops
+    if (!this.moduleLoader) {
+      return Null();
+    }
+
+    // Load the module
+    const moduleExports = this.moduleLoader.load(stmt.path);
+
+    if (!isRecord(moduleExports)) {
+      throw new RuntimeError(
+        `Module '${stmt.path}' did not export a valid record`
+      );
+    }
+
+    if (stmt.names) {
+      // Selective import: from math import sin, cos
+      for (const name of stmt.names) {
+        const value = moduleExports.fields.get(name);
+        if (value === undefined) {
+          throw new RuntimeError(
+            `Module '${stmt.path}' does not export '${name}'`
+          );
+        }
+        this.currentEnv.define(name, value);
+      }
+    } else {
+      // Namespace or aliased import: import math OR import math as m
+      const bindingName = stmt.alias ?? stmt.path;
+      this.currentEnv.define(bindingName, moduleExports);
+    }
+
     return Null();
   }
 
