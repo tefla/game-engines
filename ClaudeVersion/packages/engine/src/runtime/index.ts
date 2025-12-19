@@ -1,2 +1,2 @@
 // Runtime exports
-export { Runtime, type RuntimeOptions } from "./runtime";
+export { Runtime, type RuntimeOptions, type GameState } from "./runtime";

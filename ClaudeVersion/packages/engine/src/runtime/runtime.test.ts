@@ -1,7 +1,15 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import { Runtime } from "./runtime";
 import { Str, Num, Null, Bool, isList, isString, isNumber } from "@oort/core";
 import { VirtualFileSystem } from "../vfs";
+
+// Mock requestAnimationFrame and cancelAnimationFrame for Node.js environment
+global.requestAnimationFrame = vi.fn((callback) => {
+  return setTimeout(() => callback(performance.now()), 0) as unknown as number;
+});
+global.cancelAnimationFrame = vi.fn((id) => {
+  clearTimeout(id);
+});
 
 // Helper to dedent multi-line strings for tests
 function dedent(str: string): string {
@@ -187,6 +195,71 @@ describe("Runtime", () => {
 
       runtime.runFile("/player/test.sl");
       expect(output).toEqual(["from file"]);
+    });
+  });
+
+  describe("game loop", () => {
+    it("starts and stops game loop", () => {
+      const events: string[] = [];
+      runtime.on("game.start", () => events.push("start"));
+      runtime.on("game.stop", () => events.push("stop"));
+
+      expect(runtime.getGameState()).toBe("stopped");
+      expect(runtime.isRunning()).toBe(false);
+
+      runtime.startGameLoop();
+      expect(runtime.getGameState()).toBe("running");
+      expect(runtime.isRunning()).toBe(true);
+      expect(events).toContain("start");
+
+      runtime.stopGameLoop();
+      expect(runtime.getGameState()).toBe("stopped");
+      expect(runtime.isRunning()).toBe(false);
+      expect(events).toContain("stop");
+    });
+
+    it("pauses and resumes game loop", () => {
+      const events: string[] = [];
+      runtime.on("game.start", () => events.push("start"));
+      runtime.on("game.pause", () => events.push("pause"));
+      runtime.on("game.resume", () => events.push("resume"));
+      runtime.on("game.stop", () => events.push("stop"));
+
+      runtime.startGameLoop();
+      expect(runtime.isRunning()).toBe(true);
+
+      runtime.pauseGameLoop();
+      expect(runtime.isPaused()).toBe(true);
+      expect(runtime.getGameState()).toBe("paused");
+      expect(events).toContain("pause");
+
+      runtime.resumeGameLoop();
+      expect(runtime.isRunning()).toBe(true);
+      expect(events).toContain("resume");
+
+      runtime.stopGameLoop();
+      expect(events).toContain("stop");
+    });
+
+    it("does not emit start when resuming from pause", () => {
+      const events: string[] = [];
+      runtime.on("game.start", () => events.push("start"));
+      runtime.on("game.resume", () => events.push("resume"));
+
+      runtime.startGameLoop();
+      runtime.pauseGameLoop();
+      runtime.resumeGameLoop();
+
+      expect(events.filter((e) => e === "start").length).toBe(1);
+      expect(events).toContain("resume");
+
+      runtime.stopGameLoop();
+    });
+
+    it("tracks game time", () => {
+      runtime.startGameLoop();
+      expect(runtime.getGameTime()).toBe(0);
+      runtime.stopGameLoop();
     });
   });
 

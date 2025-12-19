@@ -1,6 +1,8 @@
 import React, { useRef, useEffect, useState, useCallback } from "react";
 import { PanelProps } from "@/core/panel-registry";
 import { threeService } from "@/core/three-service";
+import { runtimeService } from "@/core/runtime-service";
+import { inputService } from "@/core/input-service";
 import { useMessageBus } from "@/hooks/useMessageBus";
 import "./SceneViewport3D.css";
 
@@ -23,6 +25,12 @@ export function SceneViewport3D({ panelId, instanceId }: PanelProps) {
     // Create scene
     const state = threeService.createScene(instanceId, canvas);
 
+    // Set this as the active viewport for entity rendering
+    runtimeService.setActiveViewport(instanceId);
+
+    // Start input capture for game controls
+    inputService.startCapture(canvas);
+
     // Initial resize
     const rect = container.getBoundingClientRect();
     threeService.resize(instanceId, rect.width, rect.height);
@@ -39,6 +47,7 @@ export function SceneViewport3D({ panelId, instanceId }: PanelProps) {
     setIsInitialized(true);
 
     return () => {
+      inputService.stopCapture();
       threeService.disposeScene(instanceId);
     };
   }, [instanceId]);

@@ -10,6 +10,7 @@ import {
 import { Interpreter, parseSlate, stdlib } from "@oort/slate";
 import { SignalBus, type SignalPath, createSignalStdlib } from "../signals";
 import { VirtualFileSystem, createVfsStdlib } from "../vfs";
+import { sceneStdlib } from "../renderer3d/scene-stdlib";
 
 // Extended interpreter that bridges internal signals to SignalBus
 class RuntimeInterpreter extends Interpreter {
@@ -36,12 +37,20 @@ export interface RuntimeOptions {
   onOutput?: (message: string) => void;
 }
 
+export type GameState = "stopped" | "running" | "paused";
+
 export class Runtime {
   private interpreter!: Interpreter;
   private signalBus: SignalBus;
   private vfs: VirtualFileSystem;
   private outputHandler: (message: string) => void;
   private globals: Map<string, SlateValue>;
+
+  // Game loop state
+  private animationFrameId: number | null = null;
+  private lastTime: number = 0;
+  private gameState: GameState = "stopped";
+  private accumulatedTime: number = 0;
 
   constructor(options: RuntimeOptions = {}) {
     this.signalBus = options.signalBus ?? new SignalBus();
@@ -72,6 +81,11 @@ export class Runtime {
     // Add signal functions
     const signalStdlib = createSignalStdlib(this.signalBus);
     for (const [name, fn] of signalStdlib) {
+      this.globals.set(name, fn);
+    }
+
+    // Add 3D scene functions
+    for (const [name, fn] of sceneStdlib) {
       this.globals.set(name, fn);
     }
 
@@ -192,6 +206,96 @@ export class Runtime {
   tick(deltaTime: number = 0): void {
     const data = new Map<string, SlateValue>();
     data.set("delta", { type: "number", value: deltaTime });
+    data.set("time", { type: "number", value: this.accumulatedTime });
     this.emit("game.tick", { type: "record", fields: data });
+  }
+
+  // Start the game loop
+  startGameLoop(): void {
+    if (this.gameState === "running") return;
+
+    // If we're resuming from pause, don't emit game.start
+    const waspaused = this.gameState === "paused";
+
+    this.gameState = "running";
+    this.lastTime = performance.now();
+
+    if (!waspaused) {
+      // Fresh start
+      this.accumulatedTime = 0;
+      this.emit("game.start");
+    } else {
+      // Resume from pause
+      this.emit("game.resume");
+    }
+
+    const loop = (currentTime: number) => {
+      if (this.gameState !== "running") return;
+
+      const deltaMs = currentTime - this.lastTime;
+      const deltaSec = deltaMs / 1000;
+      this.lastTime = currentTime;
+      this.accumulatedTime += deltaSec;
+
+      // Emit tick signal
+      this.tick(deltaSec);
+
+      // Schedule next frame
+      this.animationFrameId = requestAnimationFrame(loop);
+    };
+
+    this.animationFrameId = requestAnimationFrame(loop);
+  }
+
+  // Stop the game loop completely
+  stopGameLoop(): void {
+    if (this.gameState === "stopped") return;
+
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+
+    this.gameState = "stopped";
+    this.emit("game.stop");
+  }
+
+  // Pause the game loop (can be resumed)
+  pauseGameLoop(): void {
+    if (this.gameState !== "running") return;
+
+    if (this.animationFrameId !== null) {
+      cancelAnimationFrame(this.animationFrameId);
+      this.animationFrameId = null;
+    }
+
+    this.gameState = "paused";
+    this.emit("game.pause");
+  }
+
+  // Resume from pause
+  resumeGameLoop(): void {
+    if (this.gameState !== "paused") return;
+    this.startGameLoop();
+  }
+
+  // Get current game state
+  getGameState(): GameState {
+    return this.gameState;
+  }
+
+  // Check if game is running
+  isRunning(): boolean {
+    return this.gameState === "running";
+  }
+
+  // Check if game is paused
+  isPaused(): boolean {
+    return this.gameState === "paused";
+  }
+
+  // Get accumulated game time in seconds
+  getGameTime(): number {
+    return this.accumulatedTime;
   }
 }

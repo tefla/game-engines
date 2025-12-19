@@ -70,6 +70,66 @@
   color: white;
 }
 
+/* Playback controls */
+.playback-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 0 12px;
+  height: 100%;
+}
+
+.playback-btn {
+  width: 28px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+
+.playback-btn:hover:not(.disabled) {
+  background: var(--hover);
+  color: var(--text);
+}
+
+.playback-btn.play-btn:hover {
+  color: var(--success);
+}
+
+.playback-btn.pause-btn {
+  color: var(--warning);
+}
+
+.playback-btn.pause-btn:hover {
+  background: var(--hover);
+  color: var(--warning);
+}
+
+.playback-btn.stop-btn:hover:not(.disabled) {
+  color: var(--error);
+}
+
+.playback-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.game-state-indicator {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  border-radius: 3px;
+  background: var(--bg-tertiary);
+  margin-left: 4px;
+}
+
 /* Drag region helpers */
 .drag-region {
   -webkit-app-region: drag;

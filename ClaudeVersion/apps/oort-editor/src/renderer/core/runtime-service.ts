@@ -1,10 +1,10 @@
 // Runtime Service - Manages game runtime and VFS sync with real filesystem
 // This service bridges the Electron filesystem with the in-memory VFS used by the game runtime
 
-import { VirtualFileSystem } from "@oort/engine";
-import { Runtime } from "@oort/engine";
+import { VirtualFileSystem, Runtime, setEntityCallbacks, clearEntities } from "@oort/engine";
 import { History, createHistory } from "@oort/vcs";
 import { messageBus } from "./message-bus";
+import { threeService } from "./three-service";
 
 type OutputHandler = (message: string) => void;
 
@@ -14,6 +14,7 @@ class RuntimeService {
   private projectPath: string | null = null;
   private outputHandler: OutputHandler = console.log;
   private isLoading = false;
+  private activeViewportId: string | null = null;
 
   /**
    * Initialize or reinitialize the runtime for a project
@@ -32,6 +33,9 @@ class RuntimeService {
       vfs,
       onOutput: (msg) => this.outputHandler(msg),
     });
+
+    // Wire scene-stdlib callbacks to ThreeService
+    this.wireEntityCallbacks();
 
     // Create history manager for VFS snapshots
     this.history = createHistory(vfs, { maxHistory: 50 });
@@ -105,6 +109,61 @@ class RuntimeService {
   private shouldSkipDirectory(name: string): boolean {
     const skipDirs = ["node_modules", ".git", ".vscode", ".idea", "dist", "build"];
     return skipDirs.includes(name) || name.startsWith(".");
+  }
+
+  /**
+   * Wire entity callbacks from scene-stdlib to ThreeService
+   */
+  private wireEntityCallbacks(): void {
+    setEntityCallbacks({
+      onSpawned: (entity) => {
+        if (!this.activeViewportId) {
+          // Find first active viewport
+          const viewports = threeService.getActiveViewports();
+          if (viewports.length > 0) {
+            this.activeViewportId = viewports[0];
+          }
+        }
+
+        if (this.activeViewportId) {
+          threeService.spawnEntity(this.activeViewportId, {
+            id: entity.id,
+            position: entity.position,
+            rotation: entity.rotation,
+            scale: entity.scale,
+            mesh: entity.mesh,
+          });
+        }
+      },
+      onUpdated: (entity) => {
+        if (this.activeViewportId) {
+          threeService.updateEntityTransform(this.activeViewportId, entity.id, {
+            position: entity.position,
+            rotation: entity.rotation,
+            scale: entity.scale,
+          });
+        }
+      },
+      onDestroyed: (id) => {
+        if (this.activeViewportId) {
+          threeService.removeEntity(this.activeViewportId, id);
+        }
+      },
+    });
+  }
+
+  /**
+   * Set the active 3D viewport for entity rendering
+   */
+  setActiveViewport(viewportId: string): void {
+    this.activeViewportId = viewportId;
+  }
+
+  /**
+   * Get the active viewport ID
+   */
+  getActiveViewport(): string | null {
+    return this.activeViewportId;
   }
 
   /**
@@ -245,9 +304,18 @@ class RuntimeService {
    * Close the current runtime
    */
   close(): void {
+    // Stop game loop if running
+    if (this.runtime?.isRunning()) {
+      this.runtime.stopGameLoop();
+    }
+
+    // Clear all entities
+    clearEntities();
+
     this.runtime = null;
     this.history = null;
     this.projectPath = null;
+    this.activeViewportId = null;
     messageBus.emit("runtime:closed", {});
   }
 
